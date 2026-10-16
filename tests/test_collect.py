@@ -1,7 +1,7 @@
 # /**************************************************************
 #  * @name 국내 로봇 채용 모니터 단위테스트
 #  * @file tests/test_collect.py
-#  * @version v01
+#  * @version v02
 #  * @description 기업 수·HTML 공고 파싱·중복/신규/마감 오판 방지 테스트
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-16
@@ -15,7 +15,7 @@
 import json
 from datetime import datetime,timedelta
 
-from crawler.collect import (ROSTER_FILE, parse_breezy, parse_listing, reconcile, classify_region, classify_role, job_key, parse_deadline, host_allowed, base_job)
+from crawler.collect import (ROSTER_FILE, parse_breezy, parse_listing, reconcile, classify_region, classify_role, job_key, parse_deadline, host_allowed, base_job, classify_work_scope)
 
 ROBOTIS = {"id":"robotis","name":"로보티즈","adapter":"ninehire","url":"https://robotisrecruiter.ninehire.site/jobs"}
 BEAR = {"id":"bear","name":"베어로보틱스","adapter":"breezy","url":"https://bear-robotics.breezy.hr/"}
@@ -94,3 +94,41 @@ def test_angel_nested_card_title():
     jobs, _=parse_listing(angel,html,angel['url'])
     assert len(jobs)==1
     assert jobs[0]['title']=='Junior Procurement & Material Specialist'
+
+def test_greeting_career_o_url():
+    company={"id":"neuromeka","name":"뉴로메카","adapter":"greeting","url":"https://neuromeka1.career.greetinghr.com/ko/home"}
+    html = '<main><a href="/ko/o/162718"><h3>IndyPD_자동화 장비 제어 프로그램 개발자</h3><span>포항</span></a><a href="/ko/help">안내</a></main>'
+    jobs, empty=parse_listing(company,html,company['url'])
+    assert len(jobs)==1 and not empty
+    assert jobs[0]['url']=='https://neuromeka1.career.greetinghr.com/ko/o/162718'
+    assert jobs[0]['role']=='SI·자동화'
+
+
+def test_location_scope_domestic_overseas_unknown():
+    assert classify_work_scope('Seoul, KR Seoul Korea')=='국내'
+    assert classify_work_scope("Dublin, IE Dublin Ireland")=='해외'
+    assert classify_work_scope('Hanoi, VN')=='해외'
+    assert classify_work_scope('Xiamen, CN')=='해외'
+    assert classify_work_scope('미상')=='미상'
+    assert classify_work_scope('', '경기')=='국내'
+    assert classify_work_scope('서울 성동구 해외영업 부서')=='국내'
+    assert classify_work_scope('Tokyo, JP')=='해외'
+
+
+def test_breezy_country_dict_and_country_scope():
+    jobs=parse_breezy(BEAR,[{'id':'oversea','name':'Engineer',
+        'url':'https://bear-robotics.breezy.hr/p/oversea',
+        'location':{'name':'Dublin, IE','city':'Dublin','country':{'name':'Ireland','id':'IE'}}},
+        {'id':'domestic','name':'Field Engineer','url':'https://bear-robotics.breezy.hr/p/domestic',
+        'location':{'city':'Seoul','country':{'name':'Korea, Republic of','id':'KR'}}}])
+    assert jobs[0]['work_scope']=='해외'
+    assert jobs[1]['work_scope']=='국내'
+    assert "{'name':" not in jobs[0]['location']
+
+
+def test_old_jobs_keep_country_scope():
+    job=base_job(BEAR,'Engineer','https://bear-robotics.breezy.hr/p/somejob',location='Tokyo, JP')
+    job.pop('work_scope')
+    prev={'last_run':'2026-10-15T07:10:00+09:00','jobs':[job]}
+    out=reconcile(prev,[],{'bear':{'complete':False}},'2026-10-16T07:10:00+09:00')
+    assert out[0]['work_scope']=='해외'

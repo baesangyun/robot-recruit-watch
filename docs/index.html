@@ -1,7 +1,7 @@
 <!-- /**************************************************************
  * @name 로봇 채용 레이더 단일페이지
  * @file docs/index.html
- * @version v01
+ * @version v02
  * @description PC·모바일 채용 통합 대시보드 마크업
  * @author OpenAI ChatGPT
  * @date 2026-10-16
@@ -18,7 +18,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="theme-color" content="#071b31"/>
   <meta name="description" content="국내 주요 로봇기업 채용공고 자동 모니터링 — 신규·진행·마감, 직무와 지역 필터"/>
-  <title>ROBOT WATCH | 국내 로봇기업 채용 레이더 v01</title>
+  <title>ROBOT WATCH | 국내 로봇기업 채용 레이더 v02</title>
   <link rel="stylesheet" href="./styles.css"/>
   <script defer src="./seed.js"></script>
   <script defer src="./app.js"></script>
@@ -46,7 +46,7 @@
     <div class="side-bottom">
       <div class="side-activity"><span class="pulse-dot"></span><span>일일 자동 점검 설정</span></div>
       <p>GitHub Actions로 수집<br/>GitHub Pages로 공개</p>
-      <div class="side-meta">© 2026 ROBOT WATCH <span>v01</span></div>
+      <div class="side-meta">© 2026 ROBOT WATCH <span>v02</span></div>
     </div>
   </aside>
   <main class="main" id="top">
@@ -91,12 +91,13 @@
         </div>
         <div class="filters">
           <label class="search-box"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="회사명, 채용 직무 검색..." aria-label="회사명 또는 채용 직무 검색"/></label>
+          <label class="select-wrap"><span class="sr-only">근무 국가</span><select id="filter-scope" aria-label="국내 및 해외 근무지 구분"><option value="" selected>국내·해외 전체</option><option value="국내">국내 근무</option><option value="해외">해외 근무</option><option value="미상">근무지 미상</option></select></label>
           <label class="select-wrap"><span class="sr-only">직무</span><select id="filter-role"><option value="">전체 직무</option></select></label>
           <label class="select-wrap"><span class="sr-only">지역</span><select id="filter-region"><option value="">전체 지역</option></select></label>
           <label class="select-wrap"><span class="sr-only">기업</span><select id="filter-company"><option value="">전체 기업</option></select></label>
           <button class="reset" id="reset" title="필터 초기화" type="button">↻</button>
         </div>
-        <div class="table-intro"><span><b id="result-count">0</b>개 공고 검색됨 <span class="muted">· 확인 필요 공고는 원문 확인 후 지원하세요</span></span><select id="sort" aria-label="공고 정렬"><option value="recent">최근 발견순</option><option value="deadline">마감 가까운순</option><option value="company">기업명순</option></select></div>
+        <div class="table-intro"><span><b id="result-count">0</b>개 공고 검색됨 <span class="muted">· <span id="scope-counts">국내/해외 구분 중</span> · 확인 필요 공고는 원문 확인 후 지원하세요</span></span><select id="sort" aria-label="공고 정렬"><option value="recent">최근 발견순</option><option value="deadline">마감 가까운순</option><option value="company">기업명순</option></select></div>
         <div class="table-scroll"><table class="jobs-table"><thead><tr><th>기업명 / 구분</th><th>채용 직무</th><th>직무 분야</th><th>근무지역</th><th>마감</th><th>상태</th><th class="last-head">원문</th></tr></thead><tbody id="jobs-body"></tbody></table></div>
         <div class="empty" id="empty-jobs" hidden><div class="empty-illustration"><span>⌕</span></div><h3>표시할 채용공고가 없습니다</h3><p id="empty-reason">첫 자동 수집이 완료되면 결과가 여기에 표시됩니다.</p><button type="button" id="empty-go-companies">기업별 수집 현황 확인 ↗</button></div>
         <div class="board-bottom"><span id="page-info">—</span><div class="page-actions"><button id="prev-page" type="button">← 이전</button><button id="next-page" type="button">다음 →</button></div></div>
@@ -116,7 +117,7 @@
       <div class="howto"><div class="step-circle">1</div><div><h3>매일 자동 갱신 방식</h3><p>GitHub Actions가 기업별 공식 페이지와 허용된 공개 검색 소스를 점검하고 JSON을 갱신합니다. 이후 GitHub Pages가 바뀐 데이터를 표시합니다. 별도의 PC 상시 실행은 필요하지 않습니다.</p></div></div>
     </section>
 
-    <footer class="footer"><span>ROBOT WATCH <strong>v01</strong> · 국내 로봇기업 채용 레이더</span><span>출처: 기업 공식 채용페이지 · 확인이 필요한 검색 결과는 별도 표기</span></footer>
+    <footer class="footer"><span>ROBOT WATCH <strong>v02</strong> · 국내 로봇기업 채용 레이더</span><span>출처: 기업 공식 채용페이지 · 확인이 필요한 검색 결과는 별도 표기</span></footer>
   </main>
 </div>
 </body>

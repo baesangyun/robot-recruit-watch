@@ -1,7 +1,7 @@
 /**************************************************************
  * @name 국내 로봇기업 채용 대시보드
  * @file docs/app.js
- * @version v01
+ * @version v02
  * @description 채용/수집현황/이력 단일페이지, 신규/마감/직무/지역/기업 검색, CSV
  * @author OpenAI ChatGPT
  * @date 2026-10-16
@@ -15,12 +15,19 @@
 'use strict';
 (() => {
   const $ = (id) => document.getElementById(id);
-  const state = { data: null, view: 'jobs', status: 'all', term: '', role: '', region: '', company: '', page: 1, pageSize: 16, sort: 'recent', companyTerm: '' };
+  const state = { data: null, view: 'jobs', status: 'all', term: '', role: '', region: '', scope: '', company: '', page: 1, pageSize: 16, sort: 'recent', companyTerm: '' };
   const clean = (v) => String(v ?? '').trim();
   const jobStatus = (j) => {
     if (j.status === '마감') return '마감';
     if (j.verification !== 'official') return '확인필요';
     return j.status === '확인필요' ? '확인필요' : '진행';
+  };
+  const scopeOf = (j) => {
+    if (['국내','해외','미상'].includes(j.work_scope)) return j.work_scope;
+    const location=clean(j.location);
+    if (/\b(?:US|USA|IE|JP|CN|VN|TW|SG|IN|GB|UK|DE|FR|CA|AU|Ireland|Vietnam|Japan|China|Taiwan|Singapore)\b|미국|일본|아일랜드|베트남|중국|대만|싱가포르|tokyo|dublin|hanoi|xiamen/i.test(location)) return '해외';
+    if (/\b(?:KR|Korea|Seoul|Busan|Incheon)\b|서울|경기|인천|부산|대전|대구|성남|수원|용인|포항|창원|제주|판교/i.test(location)) return '국내';
+    return j.region && !['해외','미상'].includes(j.region) ? '국내' : '미상';
   };
   const safelyOpen = (url) => {
     if (!url) return '';
@@ -64,7 +71,7 @@
   function initOptions() {
     const jobs=state.data.jobs||[];
     const roles=['유지보수·CS','SI·자동화','영업·사업','SW·AI','HW·기구','생산·품질','관리·기타','기타'];
-    const regions=['서울','경기','인천','대전','세종','대구','부산','경남','충청','전라','경북','해외','미상'];
+    const regions=['서울','경기','인천','대전','세종','대구','부산','경남','충청','전라','경북','제주','강원','울산','해외','미상'];
     const fill=(id,values)=>{const target=$(id);for(const v of values) target.append(el('option',{value:v,text:v}));};
     fill('filter-role',roles); fill('filter-region',regions);
     const cs=[...state.data.companies].sort((a,b)=>a.name.localeCompare(b.name,'ko'));
@@ -85,6 +92,7 @@
     setText('num-active',active.length); setText('num-closed',closed.length);
     setText('num-pending',jobs.filter(j=>jobStatus(j)==='확인필요').length);
     setText('companies-total',companies.length);
+    setText('scope-counts', ['국내','해외','미상'].map(t=>t+' '+jobs.filter(j=>scopeOf(j)===t).length+'건').join(' · '));
     const notChecked=companies.filter(c=>c.status==='미실행').length;
     const limited=companies.filter(c=>c.status==='제한'||c.status==='미설정'||c.status==='실패').length;
     const notice=$('notice');
@@ -98,6 +106,7 @@
       const status=jobStatus(j);
       if(state.status==='new'&&!j.new) return false;
       if(state.status!=='new'&&state.status!=='all'&&status!==state.status) return false;
+      if(state.scope && scopeOf(j)!==state.scope) return false;
       if(state.role&&j.role!==state.role)return false;
       if(state.region&&j.region!==state.region)return false;
       if(state.company&&j.company_id!==state.company)return false;
@@ -125,7 +134,7 @@
     content.append(el('div',{class:'source-hint',text:job.verification==='official'?'기업 공개 채용목록':job.verification==='official_unverified'?'기업 과거·현행 목록 · 진행 여부 확인 필요':'검색 발견 · 모집 여부 확인 필요'}));
     tr.append(td(content));
     tr.append(td(el('span',{class:'job-badge '+roleKind(job.role||''),text:job.role||'기타'})));
-    tr.append(td(el('span',{text:job.region==='미상'?'지역 미상':(job.location&&job.location!=='미상'?job.location:job.region)})));
+    tr.append(td(el('span',{text:(job.location&&job.location!=='미상'?job.location:(job.region==='미상'?'지역 미상':job.region))+' · '+scopeOf(job)})));
     tr.append(td(el('span',{text:job.deadline?formatDate(job.deadline):'미정·상시'})));
     const st=jobStatus(job);
     tr.append(td(chip(st,st==='진행'?'good':st==='마감'?'closed':'verify')));
@@ -174,20 +183,20 @@
     }));
   }
   function resetFilters(){
-    state.term=''; state.role=''; state.region=''; state.company=''; state.status='all';state.page=1;state.sort='recent';
-    $('search').value=''; $('filter-role').value=''; $('filter-region').value=''; $('filter-company').value=''; $('sort').value='recent';
+    state.term='';state.scope=''; state.role=''; state.region=''; state.company=''; state.status='all';state.page=1;state.sort='recent';
+    $('search').value=''; $('filter-role').value=''; $('filter-region').value='';$('filter-scope').value=''; $('filter-company').value=''; $('sort').value='recent';
     document.querySelectorAll('.quick-role').forEach(b=>b.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.status==='all'));
     renderJobs();
   }
   function downloadCsv(){
     const items=filteredJobs();
-    const cols=['기업명','채용 직무','직무 분야','근무지역','경력','마감일','상태','신규 여부','검증 수준','출처 URL'];
-    const rows=items.map(j=>[j.company,j.title,j.role,j.location,j.career,j.deadline||'',jobStatus(j),j.new?'신규':'',j.verification==='official'?'공식 목록':'검색 후보',j.url]);
+    const cols=['기업명','채용 직무','직무 분야','근무지역','국내해외','경력','마감일','상태','신규 여부','검증 수준','출처 URL'];
+    const rows=items.map(j=>[j.company,j.title,j.role,j.location,scopeOf(j),j.career,j.deadline||'',jobStatus(j),j.new?'신규':'',j.verification==='official'?'공식 목록':'검색 후보',j.url]);
     const csv='\ufeff'+[cols,...rows].map(row=>row.map(value=>'"'+clean(value).replace(/^[=+@-]/,'\'$&').replace(/"/g,'""')+'"').join(',')).join('\r\n');
     const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
     const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download='국내_로봇기업_채용현황_v01_'+new Date().toISOString().slice(0,10)+'.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    const a=document.createElement('a');a.href=url;a.download='국내_로봇기업_채용현황_v02_'+new Date().toISOString().slice(0,10)+'.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
   function bind(){
     document.querySelectorAll('.side-nav-item').forEach(b=>b.addEventListener('click',()=>{displayView(b.dataset.view);window.scrollTo({top:0,behavior:'smooth'});}));
@@ -195,6 +204,7 @@
     document.querySelectorAll('.quick-role').forEach(b=>b.addEventListener('click',()=>{state.role=state.role===b.dataset.role?'':b.dataset.role;state.page=1;$('filter-role').value=state.role;document.querySelectorAll('.quick-role').forEach(x=>x.classList.toggle('active',x.dataset.role===state.role));displayView('jobs');renderJobs();}));
     $('search').addEventListener('input',e=>{state.term=e.target.value;state.page=1;renderJobs()});
     $('filter-role').addEventListener('change',e=>{state.role=e.target.value;state.page=1;document.querySelectorAll('.quick-role').forEach(x=>x.classList.toggle('active',x.dataset.role===state.role));renderJobs()});
+    $('filter-scope').addEventListener('change',e=>{state.scope=e.target.value;state.page=1;renderJobs()});
     $('filter-region').addEventListener('change',e=>{state.region=e.target.value;state.page=1;renderJobs()});
     $('filter-company').addEventListener('change',e=>{state.company=e.target.value;state.page=1;renderJobs()});
     $('sort').addEventListener('change',e=>{state.sort=e.target.value;state.page=1;renderJobs()});

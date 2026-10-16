@@ -1,7 +1,7 @@
 # /**************************************************************
 #  * @name 국내 로봇기업 채용 자동수집기
 #  * @file crawler/collect.py
-#  * @version v01
+#  * @version v02
 #  * @description 공식 채용페이지/공개 공고 피드 수집, 신규·진행·마감 판정, 기업별 검사 기록
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-16
@@ -39,8 +39,8 @@ LOG = logging.getLogger("robot_recruit")
 VALID_SCHEMES = {"https", "http"}
 MAX_JOBS_PER_SOURCE = 90
 FIND_PATTERNS = {
-    "ninehire": ["a[href*='/job_posting/']"],
-    "greeting": ["a[href*='/ko/job/']", "a[href*='/job/']", "a[href*='/jobs/']"],
+    "ninehire": ["a[href*='/job_posting/']", "a[href*='/jobs/']"],
+    "greeting": ["a[href*='/ko/o/']", "a[href*='/o/']", "a[href*='/ko/job/']", "a[href*='/job/']", "a[href*='/jobs/']"],
     "rainbow": ["a[href*='uid='][href*='mod=document']"],
     "angel": ["a[href*='/recruit/notice/']"],
     "yujin": ["a[href*='/company/recruit/']"],
@@ -66,7 +66,10 @@ REGIONS = [
     ("충청",r"충북|충남|천안|청주|아산|음성"),
     ("전라",r"전북|전남|광주|전주|광양|군산|gwangju"),
     ("경북",r"경북|구미|포항|경주"),
-    ("해외",r"미국|일본|독일|싱가포르|usa|japan|global|singapore"),
+    ("제주",r"제주|jeju"),
+    ("강원",r"강원|춘천|원주|강릉|gangwon"),
+    ("울산",r"울산|ulsan"),
+    ("해외",r"미국|일본|독일|싱가포르|아일랜드|베트남|중국|인도|대만|영국|캐나다|프랑스|호주|usa|japan|singapore|ireland|vietnam|china|taiwan|india|germany|canada|australia|tokyo|dublin|hanoi|xiamen"),
 ]
 HIRE_HINT = re.compile(r"채용|모집|인재|엔지니어|개발자|연구원|설계|manager|engineer|developer|직무|인턴|담당|specialist|intern|품질|영업|기술지원|연구|기획|서비스|로봇|\bCS\b", re.I)
 NOT_JOB = re.compile(r"채용공고$|채용정보$|채용안내$|공지사항|채용절차|FAQ|privacy|career$|recruit$|지원방법|접수방법|기업문화|회원가입|로그인|목록|더보기|홈페이지|인재풀 등록$|전체 공고", re.I)
@@ -110,6 +113,23 @@ def classify_region(text: str) -> str:
     return "미상"
 
 
+# Worksite country, not company headquarters or job-title keywords. Uncertain locations remain unknown.
+DOMESTIC_COUNTRY = re.compile(r"(?:\b(?:KR|KOR|Korea|South Korea|Republic of Korea)\b|대한민국|한국|서울|경기|인천|대전|세종|대구|부산|울산|광주|제주|강원|충북|충남|전북|전남|경북|경남|수원|용인|성남|판교|화성|포항|창원|청주|천안|안산|하남|마곡|송도|seoul|incheon|suwon|daejeon|busan|daegu|gyeonggi|pangyo|jeju)", re.I)
+OVERSEAS_COUNTRY = re.compile(r"(?:\b(?:US|USA|IE|JP|CN|VN|TW|SG|IN|GB|UK|DE|FR|CA|AU|JPN|CHN|SGP|Vietnam|Ireland|Japan|China|Taiwan|Singapore|Germany|France|Canada|Australia|India)\b|미국|일본|중국|베트남|아일랜드|대만|싱가포르|독일|프랑스|캐나다|호주|영국|tokyo|dublin|hanoi|xiamen|san francisco|sunnyvale|boston|new york|london)", re.I)
+
+
+def classify_work_scope(location: str, region: str = "미상") -> str:
+    """국내 / 해외 / 미상. 직무 제목(예: 해외영업)으로 해외 근무를 추정하지 않음."""
+    location = tidy(location)
+    if location in ("", "미상", "원격", "Remote", "remote"):
+        return "국내" if region not in ("미상", "해외") else "미상"
+    if OVERSEAS_COUNTRY.search(location):
+        return "해외"
+    if DOMESTIC_COUNTRY.search(location):
+        return "국내"
+    return "국내" if region not in ("미상", "해외") else ("해외" if region == "해외" else "미상")
+
+
 def normalized_url(url: str) -> str:
     p = urllib.parse.urlsplit(url)
     q = urllib.parse.parse_qsl(p.query, keep_blank_values=False)
@@ -142,7 +162,7 @@ def base_job(company: dict, title: str, url: str, *, location: str = "", detail:
     return {
         "id": job_key(company["id"], url), "company_id": company["id"], "company": company["name"],
         "title": title, "url": url, "location": location or "미상",
-        "region": classify_region(location or detail), "role": classify_role(title),
+        "region": classify_region(location or detail), "work_scope": classify_work_scope(location, classify_region(location)), "role": classify_role(title),
         "career": "신입·경력" if re.search("신입.*경력|경력.*무관|무관", title+detail, re.I) else ("경력" if re.search("경력|senior|experienced",title+detail,re.I) else ("신입" if re.search("신입|intern|인턴",title+detail,re.I) else "미상")),
         "deadline": deadline or parse_deadline(detail), "verification": reliability,
         "first_seen": None, "last_seen": None, "status": "진행", "new": False, "missing_streak": 0,
@@ -153,6 +173,13 @@ def fetch(session: requests.Session, url: str) -> requests.Response:
     if not safe_link(url):
         raise ValueError("접속 URL 형식 오류")
     r = session.get(url, timeout=(7, 22), allow_redirects=True)
+    if r.status_code in (429, 503):
+        # Respect a short server Retry-After; do not bypass long rate limits.
+        retry_header = tidy(r.headers.get("Retry-After", ""))
+        delay = min(7, max(2, int(retry_header))) if retry_header.isdecimal() and int(retry_header) <= 7 else 0
+        if delay:
+            time.sleep(delay)
+            r = session.get(url, timeout=(7, 22), allow_redirects=True)
     r.raise_for_status()
     if not safe_link(r.url):
         raise ValueError("응답 URL 형식 오류")
@@ -263,7 +290,13 @@ def parse_breezy(company: dict, payload) -> list[dict]:
         if not title or not safe_link(str(url)): continue
         loc = p.get("location") or {}
         if isinstance(loc, dict):
-            loc = " ".join(str(loc.get(key) or "") for key in ("name", "city", "country"))
+            parts = []
+            for key in ("name", "city", "country"):
+                val = loc.get(key) or ""
+                if isinstance(val, dict): val = val.get("name") or val.get("id") or ""
+                val = tidy(val)
+                if val and not any(val.lower() in x.lower() for x in parts): parts.append(val)
+            loc = " / ".join(parts)
         j = base_job(company, title, url, location=str(loc), detail=str(p.get("department", "")))
         out.append(j)
     return out
@@ -377,6 +410,9 @@ def reconcile(old_data: dict, discovered: list[dict], statuses: dict[str, dict],
             if job["missing_streak"] >= 2:
                 job["status"] = "확인필요"  # Never falsely claim closed from disappearance alone.
         job["new"] = False
+    for j in old.values():
+        # Backfill worksite classification for v01 history without dropping old jobs.
+        j["work_scope"] = classify_work_scope(j.get("location", ""), j.get("region", "미상"))
     return sorted(old.values(), key=lambda j:(j["status"]!="진행",not j.get("new", False),j.get("first_seen", "")), reverse=False)
 
 
@@ -407,7 +443,7 @@ def run(*, with_search: bool = True, session: requests.Session | None = None) ->
         LOG.info("%-14s %-4s official=%d search=%d %s", company["id"], status, len(jobs), len(candidates), detail)
         time.sleep(0.2)
     jobs = reconcile(prev, discovered, statuses, now)
-    result = {"version": "v01", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
+    result = {"version": "v02", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
               "history": ([{"time":now, "jobs_official":sum(1 for j in jobs if j.get("verification")=="official" and j.get("status")=="진행"),
                            "success":sum(s["status"]=="성공" for s in statuses.values()),
                            "limited":sum(s["status"] in ("제한","미설정") for s in statuses.values()),
