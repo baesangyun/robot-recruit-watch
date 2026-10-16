@@ -1,12 +1,13 @@
 /**************************************************************
  * @name 국내 로봇기업 채용 대시보드
  * @file docs/app.js
- * @version v02
+ * @version v03
  * @description 채용/수집현황/이력 단일페이지, 신규/마감/직무/지역/기업 검색, CSV
  * @author OpenAI ChatGPT
  * @date 2026-10-16
  * @Revisions
  * - 현재 버전:
+ *   1) v03: 채용전문사이트 후보 및 승인 API 연동, 목록 가독성·정렬·수집 오류 확인
  *   1) 동적 JSON 로드, 공식공고와 확인필요 검색결과 엄격 구분
  *   2) 30개사 상태판, 필터, 페이지 이동 및 CSV 다운로드
  * - 이전 버전:
@@ -15,11 +16,11 @@
 'use strict';
 (() => {
   const $ = (id) => document.getElementById(id);
-  const state = { data: null, view: 'jobs', status: 'all', term: '', role: '', region: '', scope: '', company: '', page: 1, pageSize: 16, sort: 'recent', companyTerm: '' };
+  const state = { data: null, view: 'jobs', status: 'all', term: '', role: '', region: '', scope: '', company: '', page: 1, pageSize: 100, sort: 'recent', companyTerm: '' };
   const clean = (v) => String(v ?? '').trim();
   const jobStatus = (j) => {
     if (j.status === '마감') return '마감';
-    if (j.verification !== 'official') return '확인필요';
+    if (!['official','platform_api'].includes(j.verification)) return '확인필요';
     return j.status === '확인필요' ? '확인필요' : '진행';
   };
   const scopeOf = (j) => {
@@ -52,7 +53,7 @@
     return node;
   };
   const td = (...children) => el('td',{},children);
-  const statuses = {'성공':'good','제한':'partial','실패':'failed','미설정':'idle','미실행':'idle'};
+  const statuses = {'성공':'good','제한':'partial','실패':'failed','보안오류':'failed','미설정':'idle','미실행':'idle'};
   const chip = (text,kind) => el('span',{class:'status-chip '+kind,text});
   const roleKind = (role) => role.includes('SI')?'r-si':role.includes('영업')?'r-sales':role.includes('SW')?'r-sw':role.includes('HW')?'r-hw':'r-etc';
   const setText = (id,value) => {const e=$(id); if(e) e.textContent=clean(value);};
@@ -79,7 +80,7 @@
   }
   function updateSummary(){
     const jobs=state.data.jobs||[];
-    const official=jobs.filter(j=>j.verification==='official');
+    const official=jobs.filter(j=>['official','platform_api'].includes(j.verification));
     const active=official.filter(j=>jobStatus(j)==='진행');
     const closed=official.filter(j=>jobStatus(j)==='마감');
     const fresh=active.filter(j=>j.new);
@@ -94,7 +95,7 @@
     setText('companies-total',companies.length);
     setText('scope-counts', ['국내','해외','미상'].map(t=>t+' '+jobs.filter(j=>scopeOf(j)===t).length+'건').join(' · '));
     const notChecked=companies.filter(c=>c.status==='미실행').length;
-    const limited=companies.filter(c=>c.status==='제한'||c.status==='미설정'||c.status==='실패').length;
+    const limited=companies.filter(c=>c.status==='제한'||c.status==='미설정'||c.status==='실패'||c.status==='보안오류').length;
     const notice=$('notice');
     notice.classList.toggle('warning',Boolean(state.data.last_run&&limited>0));
     if (!state.data.last_run) setText('notice-text','아직 자동 수집을 실행하지 않았습니다. 이 화면의 0건은 실제 채용 0건이 아니라 데이터 미수집을 뜻합니다.');
@@ -131,7 +132,12 @@
     const u=safelyOpen(job.url);
     content.append(u?el('a',{href:u,target:'_blank',rel:'noopener noreferrer',text:job.title}):el('span',{text:job.title}));
     if(job.new && jobStatus(job)==='진행')content.append(el('span',{class:'title-new',text:'NEW'}));
-    content.append(el('div',{class:'source-hint',text:job.verification==='official'?'기업 공개 채용목록':job.verification==='official_unverified'?'기업 과거·현행 목록 · 진행 여부 확인 필요':'검색 발견 · 모집 여부 확인 필요'}));
+    content.append(el('div',{class:'source-hint',text:job.verification==='official'?'기업 공개 채용목록':job.verification==='platform_api'?'사람인 API · 활성 공고 확인':job.verification==='official_unverified'?'기업 과거·현행 목록 · 진행 여부 확인 필요':(job.source||'검색 발견')+' · 모집 여부 확인 필요'}));
+    if (Array.isArray(job.other_sources)&&job.other_sources.length) {
+      const links=el('div',{class:'alt-job-sources'});
+      job.other_sources.forEach(s=>{const link=safelyOpen(s.url);if(link)links.append(el('a',{href:link,target:'_blank',rel:'noopener noreferrer',text:s.source+' ↗'}));});
+      content.append(links);
+    }
     tr.append(td(content));
     tr.append(td(el('span',{class:'job-badge '+roleKind(job.role||''),text:job.role||'기타'})));
     tr.append(td(el('span',{text:(job.location&&job.location!=='미상'?job.location:(job.region==='미상'?'지역 미상':job.region))+' · '+scopeOf(job)})));
@@ -155,20 +161,31 @@
   }
   function renderCompanies(){
     const list=[...(state.data.companies||[])].filter(c=>c.name.toLocaleLowerCase('ko').includes(state.companyTerm.toLocaleLowerCase('ko')));
-    const rank={'실패':0,'제한':1,'미설정':2,'미실행':3,'성공':4};
-    list.sort((a,b)=>(rank[a.status]??5)-(rank[b.status]??5)||a.name.localeCompare(b.name,'ko'));
+    // 기본: 분류(기업 유형) 내림차순 → 동일 분류 기업명 내림차순
+    list.sort((a,b)=>(b.group||'').localeCompare(a.group||'','ko')||b.name.localeCompare(a.name,'ko'));
     const rows=list.map(c=>{
       const tr=el('tr');
       tr.append(td(el('div',{class:'source-name',text:c.name})));
       tr.append(td(el('span',{text:c.group||'—'})));
       tr.append(td(chip(c.status||'미실행',statuses[c.status]||'idle')));
       tr.append(td(el('span',{text:c.status==='성공'?String(c.official_count??0)+'건': '—'})));
-      tr.append(td(el('span',{text:String(c.candidate_count??0)+'건'})));
+      const boardData=c.portal_results||{};
+      const detail=Object.entries(boardData).filter(([k])=>k!=='사람인 API').map(([k,v])=>k+': '+v).join(' / ');
+      tr.append(td(el('span',{text:String(c.candidate_count??0)+'건',title:detail})));
       const msg=el('div',{class:'source-msg',text:c.detail||'—'});
+      if(c.status==='제한')msg.append(el('div',{class:'source-sub',text:'※ 웹 접속 성공과 채용 목록 판독 성공은 다릅니다.'}));
+      if(c.status==='실패'||c.status==='보안오류')msg.append(el('div',{class:'source-sub',text:'※ 자동 수집환경에서 확인 실패. 브라우저 접속 가능 여부와 별개'}));
       const date=el('div',{class:'source-hint',text:formatDate(c.checked_at,true)});
       tr.append(td(msg,date));
+      const links=el('div',{class:'company-source-links'});
       const u=safelyOpen(c.url);
-      tr.append(td(u?el('a',{class:'source-link',href:u,target:'_blank',rel:'noopener noreferrer',text:'채용 출처 ↗'}):el('span',{class:'source-msg',text:'링크 미설정'})));
+      if(u)links.append(el('a',{class:'source-link',href:u,target:'_blank',rel:'noopener noreferrer',text:'공식 ↗'}));
+      if(c.alternative_careers_url){const alt=safelyOpen(c.alternative_careers_url);if(alt)links.append(el('a',{class:'source-link',href:alt,target:'_blank',rel:'noopener noreferrer',text:'대체 채용목록 ↗'}));}
+      for(const site of ['잡코리아','사람인','인크루트']){
+        const target=safelyOpen((c.portal_links||{})[site]);
+        if(target)links.append(el('a',{class:'board-link',href:target,target:'_blank',rel:'noopener noreferrer',text:site+' ↗'}));
+      }
+      tr.append(td(links));
       return tr;
     });
     $('companies-body').replaceChildren(...rows);
@@ -192,11 +209,11 @@
   function downloadCsv(){
     const items=filteredJobs();
     const cols=['기업명','채용 직무','직무 분야','근무지역','국내해외','경력','마감일','상태','신규 여부','검증 수준','출처 URL'];
-    const rows=items.map(j=>[j.company,j.title,j.role,j.location,scopeOf(j),j.career,j.deadline||'',jobStatus(j),j.new?'신규':'',j.verification==='official'?'공식 목록':'검색 후보',j.url]);
+    const rows=items.map(j=>[j.company,j.title,j.role,j.location,scopeOf(j),j.career,j.deadline||'',jobStatus(j),j.new?'신규':'',j.verification==='official'?'공식 목록':j.verification==='platform_api'?'사람인 API':'검색 후보',j.url]);
     const csv='\ufeff'+[cols,...rows].map(row=>row.map(value=>'"'+clean(value).replace(/^[=+@-]/,'\'$&').replace(/"/g,'""')+'"').join(',')).join('\r\n');
     const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
     const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download='국내_로봇기업_채용현황_v02_'+new Date().toISOString().slice(0,10)+'.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    const a=document.createElement('a');a.href=url;a.download='국내_로봇기업_채용현황_v03_'+new Date().toISOString().slice(0,10)+'.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
   function bind(){
     document.querySelectorAll('.side-nav-item').forEach(b=>b.addEventListener('click',()=>{displayView(b.dataset.view);window.scrollTo({top:0,behavior:'smooth'});}));

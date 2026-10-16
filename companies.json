@@ -1,32 +1,246 @@
 [
- {"id":"hanwha","name":"한화로보틱스","group":"대기업계열","sector":"협동로봇","url":"https://www.hanwhain.com/portal/apply/recruit","adapter":"portal"},
- {"id":"doosan","name":"두산로보틱스","group":"상장기업","sector":"협동로봇","url":"https://career.doosan.com/","adapter":"portal"},
- {"id":"hd","name":"HD현대로보틱스","group":"대기업계열","sector":"산업용로봇","url":"https://recruit.hd.com/kr","adapter":"portal"},
- {"id":"samsung","name":"삼성전자 로봇사업","group":"대기업사업부","sector":"휴머노이드·서비스","url":"https://www.samsungcareers.com/","adapter":"portal"},
- {"id":"lg","name":"LG전자 로봇사업","group":"대기업사업부","sector":"서비스로봇","url":"https://careers.lg.com/","adapter":"portal"},
- {"id":"hyundai","name":"현대자동차 로보틱스","group":"대기업사업부","sector":"로보틱스","url":"https://talent.hyundai.com/","adapter":"portal"},
- {"id":"rainbow","name":"레인보우로보틱스","group":"상장기업","sector":"협동·휴머노이드","url":"https://rainbow-robotics.com/채용/채용공고/","adapter":"rainbow"},
- {"id":"robotis","name":"로보티즈","group":"상장기업","sector":"액추에이터·로봇","url":"https://robotisrecruiter.ninehire.site/jobs","adapter":"ninehire"},
- {"id":"neuromeka","name":"뉴로메카","group":"상장기업","sector":"협동·산업용","url":"https://neuromeka1.career.greetinghr.com/ko/home","adapter":"greeting"},
- {"id":"bear","name":"베어로보틱스","group":"대기업계열","sector":"서빙·AMR","url":"https://bear-robotics.breezy.hr/","adapter":"breezy"},
- {"id":"angel","name":"엔젤로보틱스","group":"상장기업","sector":"웨어러블","url":"https://www.angel-robotics.com/ko/recruit/notice","adapter":"angel"},
- {"id":"kohyoung","name":"고영테크놀러지","group":"상장기업","sector":"자동화·의료로봇","url":"https://career.kohyoung.com/recruit","adapter":"ninehire"},
- {"id":"yujin","name":"유진로봇","group":"상장기업","sector":"AMR·SI","url":"https://yujinrobot.com/company/recruit","adapter":"yujin"},
- {"id":"yuil","name":"유일로보틱스","group":"상장기업","sector":"산업용·자동화","url":"https://yuilrobotics.com/careers","adapter":"landing"},
- {"id":"robostar","name":"로보스타","group":"상장기업","sector":"산업용로봇","url":"https://gw.robostar.com/","adapter":"landing"},
- {"id":"clobot","name":"클로봇","group":"상장기업","sector":"로봇 SI·서비스","url":"https://www.clobot.co.kr/","adapter":"landing"},
- {"id":"twinny","name":"트위니","group":"비상장기업","sector":"자율주행·물류","url":"https://www.jobkorea.co.kr/recruit/co_read/recruit/c/twinny","adapter":"landing"},
- {"id":"trobotics","name":"티로보틱스","group":"상장기업","sector":"산업용·물류","url":"http://www.t-robotics.net/","adapter":"landing"},
- {"id":"everybot","name":"에브리봇","group":"상장기업","sector":"청소·서비스","url":"https://everybot.co.kr/","adapter":"landing"},
- {"id":"roborobo","name":"로보로보","group":"상장기업","sector":"교육로봇","url":"https://roborobo.co.kr/","adapter":"landing"},
- {"id":"sbb","name":"에스비비테크","group":"상장기업","sector":"로봇부품","url":null,"adapter":"search"},
- {"id":"spg","name":"에스피지","group":"상장기업","sector":"로봇감속기·모터","url":null,"adapter":"search"},
- {"id":"higen","name":"하이젠알앤엠","group":"상장기업","sector":"로봇액추에이터","url":null,"adapter":"search"},
- {"id":"vd","name":"브이디컴퍼니","group":"비상장기업","sector":"서빙·서비스","url":null,"adapter":"search"},
- {"id":"neubility","name":"뉴빌리티","group":"비상장기업","sector":"자율주행·배달","url":null,"adapter":"search"},
- {"id":"robocare","name":"로보케어","group":"비상장기업","sector":"돌봄·서비스","url":null,"adapter":"search"},
- {"id":"curexo","name":"큐렉소","group":"상장기업","sector":"의료로봇","url":null,"adapter":"search"},
- {"id":"raon","name":"라온테크","group":"상장기업","sector":"반도체 이송로봇","url":null,"adapter":"search"},
- {"id":"future","name":"휴림로봇","group":"상장기업","sector":"산업용·서비스","url":null,"adapter":"search"},
- {"id":"robot3","name":"로보쓰리에이아이앤로보틱스","group":"상장기업","sector":"서비스·물류","url":null,"adapter":"search"}
+  {
+    "id": "hanwha",
+    "name": "한화로보틱스",
+    "group": "대기업계열",
+    "sector": "협동로봇",
+    "url": "https://www.hanwhain.com/portal/apply/recruit",
+    "adapter": "portal"
+  },
+  {
+    "id": "doosan",
+    "name": "두산로보틱스",
+    "group": "상장기업",
+    "sector": "협동로봇",
+    "url": "https://career.doosan.com/",
+    "adapter": "portal",
+    "alternative_careers_url": "https://www.jobkorea.co.kr/company/16151359/recruit"
+  },
+  {
+    "id": "hd",
+    "name": "HD현대로보틱스",
+    "group": "대기업계열",
+    "sector": "산업용로봇",
+    "url": "https://recruit.hd.com/kr",
+    "adapter": "portal"
+  },
+  {
+    "id": "samsung",
+    "name": "삼성전자 로봇사업",
+    "group": "대기업사업부",
+    "sector": "휴머노이드·서비스",
+    "url": "https://www.samsungcareers.com/",
+    "adapter": "portal"
+  },
+  {
+    "id": "lg",
+    "name": "LG전자 로봇사업",
+    "group": "대기업사업부",
+    "sector": "서비스로봇",
+    "url": "https://careers.lg.com/",
+    "adapter": "portal"
+  },
+  {
+    "id": "hyundai",
+    "name": "현대자동차 로보틱스",
+    "group": "대기업사업부",
+    "sector": "로보틱스",
+    "url": "https://talent.hyundai.com/",
+    "adapter": "portal"
+  },
+  {
+    "id": "rainbow",
+    "name": "레인보우로보틱스",
+    "group": "상장기업",
+    "sector": "협동·휴머노이드",
+    "url": "https://rainbow-robotics.com/채용/채용공고/",
+    "adapter": "rainbow"
+  },
+  {
+    "id": "robotis",
+    "name": "로보티즈",
+    "group": "상장기업",
+    "sector": "액추에이터·로봇",
+    "url": "https://robotisrecruiter.ninehire.site/jobs",
+    "adapter": "ninehire",
+    "alternative_careers_url": "https://www.jobkorea.co.kr/recruit/co_read/recruit/c/30331"
+  },
+  {
+    "id": "neuromeka",
+    "name": "뉴로메카",
+    "group": "상장기업",
+    "sector": "협동·산업용",
+    "url": "https://neuromeka1.career.greetinghr.com/ko/home",
+    "adapter": "greeting"
+  },
+  {
+    "id": "bear",
+    "name": "베어로보틱스",
+    "group": "대기업계열",
+    "sector": "서빙·AMR",
+    "url": "https://bear-robotics.breezy.hr/",
+    "adapter": "breezy"
+  },
+  {
+    "id": "angel",
+    "name": "엔젤로보틱스",
+    "group": "상장기업",
+    "sector": "웨어러블",
+    "url": "https://recruit.angel-robotics.com/ko/recruit/notice",
+    "adapter": "angel"
+  },
+  {
+    "id": "kohyoung",
+    "name": "고영테크놀러지",
+    "group": "상장기업",
+    "sector": "자동화·의료로봇",
+    "url": "https://career.kohyoung.com/recruit",
+    "adapter": "ninehire"
+  },
+  {
+    "id": "yujin",
+    "name": "유진로봇",
+    "group": "상장기업",
+    "sector": "AMR·SI",
+    "url": "https://yujinrobot.com/company/recruit",
+    "adapter": "yujin"
+  },
+  {
+    "id": "yuil",
+    "name": "유일로보틱스",
+    "group": "상장기업",
+    "sector": "산업용·자동화",
+    "url": "https://yuilrobotics.com/careers",
+    "adapter": "landing"
+  },
+  {
+    "id": "robostar",
+    "name": "로보스타",
+    "group": "상장기업",
+    "sector": "산업용로봇",
+    "url": "https://gw.robostar.com/",
+    "adapter": "landing",
+    "alternative_careers_url": "https://www.jobkorea.co.kr/company/1671551/recruit",
+    "notice": "공식 사이트에서 인증서 경고 시 우회하지 말고 대체 채용목록 이용"
+  },
+  {
+    "id": "clobot",
+    "name": "클로봇",
+    "group": "상장기업",
+    "sector": "로봇 SI·서비스",
+    "url": "https://www.clobot.co.kr/",
+    "adapter": "landing"
+  },
+  {
+    "id": "twinny",
+    "name": "트위니",
+    "group": "비상장기업",
+    "sector": "자율주행·물류",
+    "url": "https://www.jobkorea.co.kr/recruit/co_read/recruit/c/twinny",
+    "adapter": "landing"
+  },
+  {
+    "id": "trobotics",
+    "name": "티로보틱스",
+    "group": "상장기업",
+    "sector": "산업용·물류",
+    "url": "http://www.t-robotics.net/",
+    "adapter": "landing"
+  },
+  {
+    "id": "everybot",
+    "name": "에브리봇",
+    "group": "상장기업",
+    "sector": "청소·서비스",
+    "url": "https://everybot.co.kr/",
+    "adapter": "landing"
+  },
+  {
+    "id": "roborobo",
+    "name": "로보로보",
+    "group": "상장기업",
+    "sector": "교육로봇",
+    "url": "https://roborobo.co.kr/",
+    "adapter": "landing"
+  },
+  {
+    "id": "sbb",
+    "name": "에스비비테크",
+    "group": "상장기업",
+    "sector": "로봇부품",
+    "url": null,
+    "adapter": "search"
+  },
+  {
+    "id": "spg",
+    "name": "에스피지",
+    "group": "상장기업",
+    "sector": "로봇감속기·모터",
+    "url": null,
+    "adapter": "search"
+  },
+  {
+    "id": "higen",
+    "name": "하이젠알앤엠",
+    "group": "상장기업",
+    "sector": "로봇액추에이터",
+    "url": null,
+    "adapter": "search"
+  },
+  {
+    "id": "vd",
+    "name": "브이디컴퍼니",
+    "group": "비상장기업",
+    "sector": "서빙·서비스",
+    "url": null,
+    "adapter": "search"
+  },
+  {
+    "id": "neubility",
+    "name": "뉴빌리티",
+    "group": "비상장기업",
+    "sector": "자율주행·배달",
+    "url": null,
+    "adapter": "search"
+  },
+  {
+    "id": "robocare",
+    "name": "로보케어",
+    "group": "비상장기업",
+    "sector": "돌봄·서비스",
+    "url": null,
+    "adapter": "search"
+  },
+  {
+    "id": "curexo",
+    "name": "큐렉소",
+    "group": "상장기업",
+    "sector": "의료로봇",
+    "url": null,
+    "adapter": "search"
+  },
+  {
+    "id": "raon",
+    "name": "라온테크",
+    "group": "상장기업",
+    "sector": "반도체 이송로봇",
+    "url": null,
+    "adapter": "search"
+  },
+  {
+    "id": "future",
+    "name": "휴림로봇",
+    "group": "상장기업",
+    "sector": "산업용·서비스",
+    "url": null,
+    "adapter": "search"
+  },
+  {
+    "id": "robot3",
+    "name": "로보쓰리에이아이앤로보틱스",
+    "group": "상장기업",
+    "sector": "서비스·물류",
+    "url": null,
+    "adapter": "search"
+  }
 ]

@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 국내 로봇 채용 모니터 단위테스트
 #  * @file tests/test_collect.py
-#  * @version v02
+#  * @version v03
 #  * @description 기업 수·HTML 공고 파싱·중복/신규/마감 오판 방지 테스트
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-16
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) v03: 채용전문사이트 후보 및 승인 API 연동, 목록 가독성·정렬·수집 오류 확인
 #  *   1) 신뢰 구분 및 첫 실행 신규 제외 확인
 #  *   2) HTML 추출 및 종료 판정 테스트
 #  * - 이전 버전:
@@ -132,3 +133,86 @@ def test_old_jobs_keep_country_scope():
     prev={'last_run':'2026-10-15T07:10:00+09:00','jobs':[job]}
     out=reconcile(prev,[],{'bear':{'complete':False}},'2026-10-16T07:10:00+09:00')
     assert out[0]['work_scope']=='해외'
+
+
+# v03: recruitment boards & safe fallback behaviors
+from crawler.collect import (BOARD_SITES, board_search_url, portal_links, rss_board_candidates,
+    saramin_api_candidates, deduplicate_sources, scrape_official)
+import requests
+
+class MockResp:
+    def __init__(self, text='', json_data=None, url='https://www.bing.com/search?format=rss'):
+        self.content=text.encode('utf-8'); self.text=text
+        self._json=json_data
+        self.url=url; self.status_code=200; self.headers={}
+    def json(self):return self._json
+    def raise_for_status(self):pass
+
+class MockSession:
+    def __init__(self, response):self.response=response
+    def get(self, url, **kwargs):
+        if isinstance(self.response, Exception):raise self.response
+        return self.response
+
+
+def test_portal_links_are_distinct_and_valid():
+    links=portal_links('두산로보틱스')
+    assert set(links)==set(BOARD_SITES)
+    assert all(link.startswith('https://') for link in links.values())
+    assert '두산' not in board_search_url('잡코리아','뉴로메카')
+
+
+def test_rss_board_job_is_unverified_not_falsely_active():
+    rss="""<rss><channel><item><title>두산로보틱스 로봇 유지보수 엔지니어 채용</title>
+<link>https://www.jobkorea.co.kr/Recruit/GI_Read/99211</link><description>두산로보틱스</description></item>
+<item><title>별개의 회사 채용</title><link>https://www.jobkorea.co.kr/Recruit/GI_Read/99212</link><description>두산로보틱스</description></item>
+</channel></rss>"""
+    company={'id':'doosan','name':'두산로보틱스','url':'https://career.doosan.com/'}
+    jobs,note=rss_board_candidates(company,'잡코리아',MockSession(MockResp(rss)))
+    assert len(jobs)==1
+    assert jobs[0]['verification']=='search_unverified'
+    assert jobs[0]['status']=='확인필요'
+    assert jobs[0]['source'].startswith('잡코리아')
+
+
+def test_saramin_api_strict_employer_and_active():
+    response={'jobs':{'job':[
+        {'active':1,'company':{'detail':{'name':'(주)로보스타'}},'position':{'title':'로봇 SI 엔지니어','location':{'name':'경기 > 안산'}},'url':'https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=333'},
+        {'active':1,'company':{'detail':{'name':'로보스타파트너'}},'position':{'title':'로봇 SI 엔지니어'},'url':'https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=444'},
+        {'active':0,'company':{'detail':{'name':'(주)로보스타'}},'position':{'title':'지난 공고'},'url':'https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=555'}]}}
+    company={'id':'robostar','name':'로보스타'}
+    jobs,note=saramin_api_candidates(MockSession(MockResp(json_data=response)),company,'TEST_KEY')
+    assert len(jobs)==1
+    assert jobs[0]['verification']=='platform_api'
+    assert jobs[0]['work_scope']=='국내'
+
+
+def test_dedup_keeps_official_and_alternative_links():
+    company={'id':'test','name':'테스트로봇'}
+    a=base_job(company,'로봇 서비스 엔지니어','https://example.com/post/1',location='서울')
+    b=base_job(company,'로봇 서비스 엔지니어','https://www.jobkorea.co.kr/Recruit/GI_Read/11',location='서울',reliability='search_unverified')
+    b['source']='잡코리아 검색후보'
+    out=deduplicate_sources([b,a])
+    assert len(out)==1 and out[0]['url']==a['url']
+    assert out[0]['other_sources'][0]['url']==b['url']
+
+
+def test_ssl_error_is_not_bypassed():
+    company={'id':'robostar','name':'로보스타','url':'https://gw.robostar.com/','adapter':'landing'}
+    jobs,status,message,complete=scrape_official(MockSession(requests.exceptions.SSLError('cert failed')),company)
+    assert jobs==[] and status=='보안오류' and not complete
+    assert '우회 금지' in message
+
+
+def test_frontend_100_per_page_and_group_desc_sort():
+    from pathlib import Path
+    app=(Path(__file__).resolve().parents[1]/'docs/app.js').read_text()
+    assert 'pageSize: 100' in app
+    assert "(b.group||'').localeCompare(a.group||'','ko')" in app
+    assert "['잡코리아','사람인','인크루트']" in app
+
+
+def test_angel_official_career_address():
+    roster=json.loads(ROSTER_FILE.read_text())
+    angel=next(c for c in roster if c['id']=='angel')
+    assert angel['url']=='https://recruit.angel-robotics.com/ko/recruit/notice'

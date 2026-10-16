@@ -1,12 +1,13 @@
 <!-- /**************************************************************
  * @name 로봇 채용 레이더 단일페이지
  * @file docs/index.html
- * @version v02
+ * @version v03
  * @description PC·모바일 채용 통합 대시보드 마크업
  * @author OpenAI ChatGPT
  * @date 2026-10-16
  * @Revisions
  * - 현재 버전:
+ *   1) v03: 채용전문사이트 후보 및 승인 API 연동, 목록 가독성·정렬·수집 오류 확인
  *   1) 채용 공고/수집 상태/이력 단일 화면
  * - 이전 버전:
  *   1) 최초 작성
@@ -18,7 +19,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="theme-color" content="#071b31"/>
   <meta name="description" content="국내 주요 로봇기업 채용공고 자동 모니터링 — 신규·진행·마감, 직무와 지역 필터"/>
-  <title>ROBOT WATCH | 국내 로봇기업 채용 레이더 v02</title>
+  <title>ROBOT WATCH | 국내 로봇기업 채용 레이더 v03</title>
   <link rel="stylesheet" href="./styles.css"/>
   <script defer src="./seed.js"></script>
   <script defer src="./app.js"></script>
@@ -46,7 +47,7 @@
     <div class="side-bottom">
       <div class="side-activity"><span class="pulse-dot"></span><span>일일 자동 점검 설정</span></div>
       <p>GitHub Actions로 수집<br/>GitHub Pages로 공개</p>
-      <div class="side-meta">© 2026 ROBOT WATCH <span>v02</span></div>
+      <div class="side-meta">© 2026 ROBOT WATCH <span>v03</span></div>
     </div>
   </aside>
   <main class="main" id="top">
@@ -74,7 +75,7 @@
 
     <section class="stats" aria-label="채용 요약">
       <div class="stat-card"><div class="stat-label">신규 발견 <span class="stat-symbol teal">↗</span></div><div class="stat-main"><strong id="stat-new">0</strong><small>건</small></div><p>직전 실행 후 공식 페이지 신규</p></div>
-      <div class="stat-card"><div class="stat-label">진행 중 <span class="stat-symbol blue">◎</span></div><div class="stat-main"><strong id="stat-active">0</strong><small>건</small></div><p>공식 목록 확인 기준</p></div>
+      <div class="stat-card"><div class="stat-label">진행 중 <span class="stat-symbol blue">◎</span></div><div class="stat-main"><strong id="stat-active">0</strong><small>건</small></div><p>기업 공식목록 및 승인된 API 확인 기준</p></div>
       <div class="stat-card"><div class="stat-label">마감 <span class="stat-symbol amber">◷</span></div><div class="stat-main"><strong id="stat-closed">0</strong><small>건</small></div><p>기록 중 마감기한 경과</p></div>
       <div class="stat-card"><div class="stat-label">수집 성공 기업 <span class="stat-symbol green">✓</span></div><div class="stat-main"><strong id="stat-success">0</strong><small id="stat-success-total">/ 30</small></div><p>공식 공고 목록 판독 성공</p></div>
     </section>
@@ -100,15 +101,15 @@
         <div class="table-intro"><span><b id="result-count">0</b>개 공고 검색됨 <span class="muted">· <span id="scope-counts">국내/해외 구분 중</span> · 확인 필요 공고는 원문 확인 후 지원하세요</span></span><select id="sort" aria-label="공고 정렬"><option value="recent">최근 발견순</option><option value="deadline">마감 가까운순</option><option value="company">기업명순</option></select></div>
         <div class="table-scroll"><table class="jobs-table"><thead><tr><th>기업명 / 구분</th><th>채용 직무</th><th>직무 분야</th><th>근무지역</th><th>마감</th><th>상태</th><th class="last-head">원문</th></tr></thead><tbody id="jobs-body"></tbody></table></div>
         <div class="empty" id="empty-jobs" hidden><div class="empty-illustration"><span>⌕</span></div><h3>표시할 채용공고가 없습니다</h3><p id="empty-reason">첫 자동 수집이 완료되면 결과가 여기에 표시됩니다.</p><button type="button" id="empty-go-companies">기업별 수집 현황 확인 ↗</button></div>
-        <div class="board-bottom"><span id="page-info">—</span><div class="page-actions"><button id="prev-page" type="button">← 이전</button><button id="next-page" type="button">다음 →</button></div></div>
+        <div class="board-bottom"><span id="page-info">—</span><span class="page-limit">100건/페이지</span><div class="page-actions"><button id="prev-page" type="button">← 이전</button><button id="next-page" type="button">다음 →</button></div></div>
       </div>
     </section>
 
     <section id="companies-view" class="view-panel" hidden>
-      <div class="section-heading"><div><span class="section-kicker">02 / SOURCE HEALTH</span><h2>기업별 수집 현황</h2><p>공식 목록의 판독 성공 여부와 검색 후보 확인을 별도로 표시합니다.</p></div></div>
-      <div class="health-legend"><span><i class="legend-dot good"></i> 성공 · 공고 판독 가능</span><span><i class="legend-dot partial"></i> 제한 · 접속은 가능, 판독 제한</span><span><i class="legend-dot failed"></i> 실패 · 연결 오류</span><span><i class="legend-dot idle"></i> 미설정/미실행</span></div>
-      <div class="source-board" id="sources"><div class="source-toolbar"><span><strong id="companies-total">30</strong>개 대상 기업</span><label>기업 검색 <input type="search" id="company-search" placeholder="기업명 찾기..."/></label></div><div class="table-scroll"><table class="companies-table"><thead><tr><th>기업명</th><th>분류</th><th>수집 상태</th><th>공식 목록</th><th>검색 후보</th><th>최근 확인 / 사유</th><th>바로가기</th></tr></thead><tbody id="companies-body"></tbody></table></div></div>
-      <div class="footnote">* ‘성공’은 공고 목록을 읽었다는 뜻이며 전체 채용공고를 누락 없이 확보했다는 보증은 아닙니다. ‘제한’과 ‘미설정’을 0건 채용으로 해석하지 마세요. 검색 후보는 지원 전 원문 확인이 필요합니다.</div>
+      <div class="section-heading"><div><span class="section-kicker">02 / SOURCE HEALTH</span><h2>기업별 수집 현황</h2><p>기업 분류 내림차순 → 기업명 내림차순. 웹페이지 접속 성공과 채용공고 자동 판독은 별개입니다.</p></div></div>
+      <div class="health-legend"><span><i class="legend-dot good"></i> 성공 · 공고 판독 가능</span><span><i class="legend-dot partial"></i> 제한 · 접속은 가능, 판독 제한</span><span><i class="legend-dot failed"></i> 실패/보안오류 · 요청 실패 또는 인증서 검증 오류</span><span><i class="legend-dot idle"></i> 미설정/미실행</span></div>
+      <div class="source-board" id="sources"><div class="source-toolbar"><span><strong id="companies-total">30</strong>개 대상 기업</span><label>기업 검색 <input type="search" id="company-search" placeholder="기업명 찾기..."/></label></div><div class="table-scroll"><table class="companies-table"><thead><tr><th>기업명</th><th>분류</th><th>수집 상태</th><th>공식 목록</th><th>전문사이트 후보</th><th>최근 확인 / 사유</th><th>공식/잡코리아/사람인/인크루트</th></tr></thead><tbody id="companies-body"></tbody></table></div></div>
+      <div class="footnote">* ‘성공’은 공고 목록을 읽었다는 뜻이며 전체 채용공고를 누락 없이 확보했다는 보증은 아닙니다. ‘제한’과 ‘미설정’을 0건 채용으로 해석하지 마세요. 잡코리아·사람인·인크루트 검색 후보는 현재 모집 중임을 보장하지 않습니다. 사람인 API 연동은 별도 이용 승인이 필요합니다.</div>
     </section>
 
     <section id="history-view" class="view-panel" hidden>

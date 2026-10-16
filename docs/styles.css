@@ -1,12 +1,14 @@
 /**************************************************************
  * @name 로봇기업 채용 대시보드 스타일
  * @file docs/styles.css
- * @version v01
+ * @version v03
  * @description 반응형 PC·모바일 단일 페이지 대시보드 스타일
  * @author OpenAI ChatGPT
  * @date 2026-10-16
  * @Revisions
  * - 현재 버전:
+ *   1) 채용 공고 글씨 소폭 확대 및 기업별 채용 전문사이트 링크 정렬
+ *   1) v03: 채용전문사이트 후보 및 승인 API 연동, 목록 가독성·정렬·수집 오류 확인
  *   1) 30개사 채용 요약/기업 상태/이력 화면 디자인
  *   2) PC 사이드바·모바일 반응형 및 접근성 표시
  * - 이전 버전:
@@ -24,3 +26,24 @@
 @media(max-width:1200px){.sidebar{width:215px;min-width:215px}.main{padding:0 23px 16px}.hero-art{right:4%}.stats{gap:9px}.stat-card{padding:15px}.filters{gap:7px}.select-wrap select{min-width:99px}}
 @media(max-width:900px){.sidebar{position:static;width:100%;min-width:0;height:auto;min-height:auto;padding:15px 17px;flex-direction:row;align-items:center;gap:15px}.shell{display:block}.logo{padding:0}.side-overline,.side-overline.spaced,.side-quick,.side-bottom{display:none}.side-nav{margin-left:auto;display:flex}.side-nav-item{width:auto;min-height:39px;padding:0 10px;gap:6px}.nav-amount{display:none}.main{padding:0 17px}.hero-art{right:2%}.topline{height:56px}.stats{grid-template-columns:repeat(2,1fr)}.filters .search-box{flex-basis:100%}}
 @media(max-width:570px){.sidebar{flex-wrap:wrap;gap:11px}.logo-type{font-size:15px}.logo-type small{font-size:6px}.side-nav{width:100%;justify-content:space-between;gap:3px}.side-nav-item{font-size:11px;padding:0 10px}.nav-icon{font-size:14px;width:16px}.topline{font-size:9px}.date-now{display:none}.main{padding:0 12px}.hero{height:auto;min-height:270px}.hero-body{padding:31px 24px 27px}.hero h1{font-size:27px}.hero-art{opacity:.2;right:-95px;top:10px}.hero p{position:relative}.hero-footer{position:relative}.notice{align-items:flex-start;font-size:10px;padding:11px}.notice a{display:none}.stat-card{padding:13px}.stat-main strong{font-size:29px}.stat-card p{font-size:9px;line-height:1.5}.section-heading h2{font-size:19px}.tab-bar{gap:17px;padding:0 15px}.tab{padding:15px 0}.filters{padding:12px}.search-box{min-width:100%}.select-wrap{flex:1}.select-wrap select{max-width:none;width:100%;min-width:0}.table-intro .muted{display:none}.jobs-table{min-width:850px}.companies-table{min-width:750px}.table-scroll{scrollbar-width:thin}.jobs-table th,.jobs-table td,.companies-table th,.companies-table td{padding:12px}.health-legend{gap:9px}.footer{line-height:1.8}}
+
+/* v03 / List readability and 100 rows per page: preserve existing design */
+.jobs-table { font-size: 12.5px; }
+.jobs-table th { font-size: 11.5px; }
+.jobs-table td { font-size: 12.5px; padding: 15px 16px; line-height: 1.58; }
+.jobs-table .company-name { font-size: 12.5px; }
+.jobs-table .company-class, .jobs-table .source-hint { font-size: 10.5px; }
+.jobs-table .job-title { font-size: 13.5px; line-height: 1.58; }
+.jobs-table .job-badge, .jobs-table .status-chip { font-size: 11px; }
+.companies-table { font-size: 11.5px; }
+.companies-table th { font-size: 11px; }
+.companies-table td { padding: 13px 13px; }
+.companies-table .source-msg { font-size: 11px; max-width: 400px; }
+.source-sub { display:block; margin-top: 3px; font-size:10px; color: #b07e2b; }
+.company-source-links { display:flex; flex-wrap:wrap; gap: 7px 11px; min-width: 260px; }
+.company-source-links a { white-space:nowrap; font-size: 11px; }
+.board-link { color:#586d8c; text-decoration:underline; text-underline-offset:2px; }
+.alt-job-sources { display:flex; flex-wrap:wrap; gap:8px; margin-top:5px; }
+.alt-job-sources a { font-size:10px; color:#287487; text-decoration:underline; }
+.page-limit { color:#627488; margin-left:10px; white-space:nowrap; }
+@media(max-width:570px) { .jobs-table { min-width: 1020px; } .jobs-table td { font-size:12px; } }
