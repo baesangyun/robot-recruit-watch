@@ -1,0 +1,23 @@
+{
+  "robotis": {
+    "잡코리아": [
+      "https://www.jobkorea.co.kr/company/42816603/recruit"
+    ],
+    "인크루트": [
+      "https://www.incruit.com/company/2380616/job"
+    ]
+  },
+  "doosan": {
+    "잡코리아": [
+      "https://www.jobkorea.co.kr/company/16151359/recruit"
+    ]
+  },
+  "neuromeka": {
+    "사람인": [
+      "https://www.saramin.co.kr/zf_user/company-info/view-inner-recruit?csn=djc0QW1pUTNWcnlRT2VVZXBTVlJwdz09"
+    ],
+    "인크루트": [
+      "https://www.incruit.com/company/21395774/job"
+    ]
+  }
+}

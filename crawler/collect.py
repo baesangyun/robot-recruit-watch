@@ -1,7 +1,7 @@
 # /**************************************************************
 #  * @name 국내 로봇기업 채용 자동수집기
 #  * @file crawler/collect.py
-#  * @version v03
+#  * @version v04
 #  * @description 공식 채용페이지/공개 공고 피드 수집, 신규·진행·마감 판정, 기업별 검사 기록
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-16
@@ -26,6 +26,7 @@ import logging
 import re
 import time
 import urllib.parse
+import urllib.robotparser
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -80,6 +81,7 @@ NO_OPENINGS = re.compile(r"(현재|진행.?중인|등록된).{0,12}(채용|공�
 DATE_RX = re.compile(r"(20\d\d)[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})")
 BOARD_SITES = {"잡코리아": "jobkorea.co.kr", "사람인": "saramin.co.kr", "인크루트": "incruit.com"}
 VERIFIED_SOURCES = {"official", "platform_api"}
+COMPANY_BOARD_FILE = ROOT / "board_company_pages.json"
 RSS_HOSTS = ("jobkorea.co.kr", "saramin.co.kr", "incruit.com", "wanted.co.kr", "career.greetinghr.com", "ninehire.site", "breezy.hr", "recruit.hd.com", "career.doosan.com", "hanwhain.com", "rainbow-robotics.com", "yujinrobot.com", "angel-robotics.com")
 
 
@@ -365,7 +367,8 @@ def rss_candidates(session: requests.Session, company: dict) -> tuple[list[dict]
 def board_search_url(platform: str, company_name: str) -> str:
     """Public search index query only; not a portal content scraper or authorized API."""
     domain = BOARD_SITES[platform]
-    query = 'site:' + domain + ' "' + company_name + '" 채용'
+    path={'잡코리아':'/Recruit/GI_Read/','사람인':'/zf_user/jobs/','인크루트':'/jobdb_info/'}[platform]
+    query = 'site:' + domain + path + ' "' + company_name + '"'
     return "https://www.bing.com/search?format=rss&q=" + urllib.parse.quote(query)
 
 
@@ -400,11 +403,12 @@ def rss_board_candidates(company: dict, platform: str, session: requests.Session
             desc=tidy(BeautifulSoup(el.findtext('description') or '', 'html.parser').get_text(' '))
             if not safe_link(link) or not host_allowed(link,(BOARD_SITES[platform],)):
                 continue
-            # Avoid cross-company attribution: exact company name in title or snippet is mandatory.
+            # Only actual detail URLs with visible exact employer matches qualify.
+            if not is_portal_job_link(platform,link): continue
             normalized_title=company_identity(title)
             if company_identity(company['name']) not in normalized_title:
                 continue
-            if not HIRE_HINT.search(title) or NOT_JOB.search(title):
+            if not HIRE_HINT.search(title+' '+desc) or NOT_JOB.search(title):
                 continue
             canonical=normalized_url(link)
             if canonical in seen: continue
@@ -417,6 +421,517 @@ def rss_board_candidates(company: dict, platform: str, session: requests.Session
     except (requests.RequestException,ValueError,ET.ParseError) as e:
         return [],'검색 확인 불가: '+type(e).__name__
 
+
+# /**************************************************************
+#  * @name 채용전문사이트 기업별 공개 공고 수집
+#  * @file crawler/collect.py — portal helper region
+#  * @version v04
+#  * @description 링크 검증·robots 확인·공개 공고 목록 파싱
+#  * @author OpenAI ChatGPT
+#  * @date 2026-10-16
+#  * @Revisions
+#  * - 현재 버전:
+#  *   1) 잡코리아·사람인·인크루트 기업별 공개 목록 확인
+#  *   2) 수집 제한 준수 및 개별 공고 URL 추출
+#  * - 이전 버전:
+#  *   1) v03 검색 색인만 이용
+#  **************************************************************/
+JOB_DETAIL_PATHS = {
+    '잡코리아': re.compile(r'/Recruit/GI_Read/\d+', re.I),
+    '사람인': re.compile(r'/zf_user/jobs/(?:relay/)?view(?:\?|$)', re.I),
+    '인크루트': re.compile(r'/(?:jobdb_info/|jobpost/).*?(?:jobpost|job=)', re.I),
+}
+
+def is_portal_job_link(platform: str, url: str) -> bool:
+    if platform not in BOARD_SITES or not safe_link(url) or not host_allowed(url,(BOARD_SITES[platform],)):
+        return False
+    parts=urllib.parse.urlsplit(url)
+    if not JOB_DETAIL_PATHS[platform].search(parts.path+('?' + parts.query if parts.query else '')):
+        return False
+    if platform == '사람인' and not re.search(r'(?:^|&)rec_idx=\d+',parts.query):
+        return False
+    return True
+
+def robots_permission(session: requests.Session, url: str) -> tuple[bool,str]:
+    """Honor target host's robots.txt; block on uncertainty or denial."""
+    p=urllib.parse.urlsplit(url)
+    robots=f'{p.scheme}://{p.netloc}/robots.txt'
+    try:
+        r=session.get(robots,timeout=(4,8),allow_redirects=True)
+        if r.status_code in (401,403):return False,'robots 접근 제한'
+        if r.status_code in (404,410):return True,'robots 규칙 없음'
+        r.raise_for_status()
+        parser=urllib.robotparser.RobotFileParser()
+        parser.parse(r.text.splitlines())
+        if not parser.can_fetch(USER_AGENT,url):
+            return False,'robots 정책에 따라 수집 보류'
+        return True,'robots 허용'
+    except (requests.RequestException,ValueError) as exc:
+        return False,'robots 확인 불가: '+type(exc).__name__
+
+def extract_portal_company_jobs(company:dict,platform:str,html:str,page_url:str)->list[dict]:
+    """Only actual vacancy links in an explicitly active public company listing."""
+    soup=BeautifulSoup(html,'html.parser')
+    headings=soup.find_all(re.compile('^h[1-6]
+    """Official Saramin search API requires approved key. Strict company matching."""
+    if not access_key: return [],'API 키 미설정(검색 링크 이용)'
+    try:
+        r=fetch(session,'https://oapi.saramin.co.kr/job-search?'+urllib.parse.urlencode({
+            'access-key':access_key,'keywords':company['name'],'count':75,'sort':'pd'}))
+        data=r.json()
+        if 'result' in data:
+            return [],'API 오류: '+tidy(data['result'].get('message',''))[:90]
+        records=(data.get('jobs') or {}).get('job') or []
+        if isinstance(records,dict):records=[records]
+        out=[]
+        for item in records:
+            employer=((item.get('company') or {}).get('detail') or {}).get('name','')
+            if company_identity(employer)!=company_identity(company['name']):continue
+            if str(item.get('active',0))!='1':continue
+            position=item.get('position') or {}
+            title=tidy(position.get('title',''))
+            url=item.get('url','')
+            if not title or not safe_link(url) or not host_allowed(url,('saramin.co.kr',)):continue
+            area=(position.get('location') or {}).get('name','')
+            deadline=None
+            end=item.get('expiration-timestamp')
+            if end and str(end).isdigit():
+                deadline=datetime.fromtimestamp(int(end),KST).date().isoformat()
+            job=base_job(company,title,url,location=area,deadline=deadline,reliability='platform_api')
+            job['source']='사람인 API (진행 확인)'
+            out.append(job)
+        return out,'API '+str(len(out))+'건 검증(해당기업 일치)'
+    except (requests.RequestException,ValueError,TypeError,OverflowError,KeyError) as e:
+        return [],'API 확인 실패: '+type(e).__name__
+
+
+def duplicate_signature(job: dict) -> tuple:
+    """Cross-provider conservative matching; leave ambiguous unknown work locations unmerged."""
+    title=tidy(job.get('title','')).lower()
+    title=re.sub(r'^\[[^]]{1,35}\]\s*','',title)
+    title=re.sub(r'\b(?:모집|채용|공고)\b','',title)
+    title=re.sub(r'[^가-힣a-z0-9]+','',title)
+    loc=tidy(job.get('location',''))
+    # Avoid merging different sites' ambiguous postings merely because title matches.
+    return job['company_id'],title,job.get('region','미상') if loc!='미상' else job.get('id')
+
+
+def deduplicate_sources(discovered: list[dict]) -> list[dict]:
+    # Keep one job per stable ID, preserve alternate source URLs and prefer verified official.
+    priorities={'official':0,'platform_api':1,'search_unverified':2,'official_unverified':3}
+    ordered=sorted(discovered,key=lambda j:priorities.get(j.get('verification'),9))
+    out={}; signatures={}
+    for j in ordered:
+        ident=duplicate_signature(j)
+        if ident in signatures:
+            prev=out[signatures[ident]]
+            if prev['url']!=j['url'] and not any(x.get('url')==j['url'] for x in prev['other_sources']):
+                prev['other_sources'].append({'source':j.get('source','대체 출처'),'url':j['url']})
+            continue
+        if j['id'] in out: continue
+        signatures[ident]=j['id']
+        out[j['id']]=j
+    return list(out.values())
+
+
+def load_previous() -> dict:
+    if not DATA_FILE.exists(): return {}
+    try:
+        raw = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        return raw if isinstance(raw, dict) else {}
+    except (ValueError,OSError):
+        return {}
+
+
+def reconcile(old_data: dict, discovered: list[dict], statuses: dict[str, dict], at: str) -> list[dict]:
+    old = {j["id"]: j for j in old_data.get("jobs", []) if isinstance(j, dict) and "id" in j}
+    fresh_ids = set()
+    baseline = not bool(old_data.get("last_run"))
+    today = datetime.fromisoformat(at).date()
+    for job in discovered:
+        job_id = job["id"]
+        if job_id in fresh_ids: continue
+        fresh_ids.add(job_id)
+        prev = old.get(job_id)
+        job["first_seen"] = (prev or {}).get("first_seen") or at
+        job["last_seen"] = at
+        job["missing_streak"] = 0
+        if job["verification"] not in VERIFIED_SOURCES:
+            # Never silently elevate an archived board or search result to an active posting.
+            if prev and prev.get("verification") in VERIFIED_SOURCES and job["verification"] == "search_unverified":
+                job["verification"] = "official"
+                job["status"] = "진행"
+            else:
+                job["status"] = "확인필요"
+        else:
+            job["status"] = "진행"
+        if job.get("deadline"):
+            try:
+                if datetime.fromisoformat(job["deadline"]).date() < today:
+                    job["status"] = "마감"
+            except ValueError:
+                job["deadline"] = None
+        job["new"] = not baseline and prev is None and job["verification"] in VERIFIED_SOURCES
+        old[job_id] = job
+    for job_id, job in old.items():
+        if job_id in fresh_ids: continue
+        src = statuses.get(job.get("company_id", ""), {})
+        if job.get("status") == "마감": continue
+        if job.get("deadline"):
+            try:
+                if datetime.fromisoformat(job["deadline"]).date() < today:
+                    job["status"] = "마감"
+                    job["new"] = False
+                    continue
+            except ValueError:
+                pass
+        # Absence from a verified complete list for two runs is a cautious signal, not proof.
+        if src.get("complete") is True and job.get("verification") == "official":
+            job["missing_streak"] = int(job.get("missing_streak") or 0) + 1
+            if job["missing_streak"] >= 2:
+                job["status"] = "확인필요"  # Never falsely claim closed from disappearance alone.
+        job["new"] = False
+    for j in old.values():
+        # Backfill worksite classification for v01 history without dropping old jobs.
+        j["work_scope"] = classify_work_scope(j.get("location", ""), j.get("region", "미상"))
+    return sorted(old.values(), key=lambda j:(j["status"]!="진행",not j.get("new", False),j.get("first_seen", "")), reverse=False)
+
+
+def run(*, with_search: bool = True, session: requests.Session | None = None) -> dict:
+    roster = json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
+    prev = load_previous()
+    now = iso_now()
+    session = session or requests.Session()
+    session.headers.update({"User-Agent": USER_AGENT, "Accept": "text/html,application/json,application/rss+xml;q=0.7,*/*;q=0.5", "Accept-Language":"ko-KR,ko;q=0.9,en;q=0.7"})
+    discovered = []
+    statuses = {}
+    try:
+        company_board_pages=json.loads(COMPANY_BOARD_FILE.read_text(encoding='utf-8'))
+    except (OSError,ValueError):
+        company_board_pages={}
+    saramin_key=os.environ.get('SARAMIN_ACCESS_KEY','').strip()
+    # Search indexes provide candidates only. No passwords, cookie replay, or blocked-site bypass.
+    def fetch_boards(company):
+        local=requests.Session()
+        local.headers.update(session.headers)
+        found=[]; notes={}
+        for board in BOARD_SITES:
+            pages=(company_board_pages.get(company['id']) or {}).get(board,[])
+            added=[]; checked=[]
+            for page in pages[:2]:
+                candidates,info=portal_company_page_candidates(local,company,board,page)
+                added.extend(candidates);checked.append(info)
+            found.extend(added)
+            matches,note=rss_board_candidates(company,board,local)
+            found.extend(matches)
+            notes[board]=(' / '.join(checked)+'; ' if checked else '')+note
+        if saramin_key:
+            verified,note=saramin_api_candidates(local,company,saramin_key)
+            found.extend(verified)
+            notes['사람인 API']=note
+        else:
+            notes['사람인 API']='API 키 미설정(검색후보만 표시)'
+        local.close()
+        return company['id'],found,notes
+
+    for company in roster:
+        official,status,detail,complete=scrape_official(session,company)
+        discovered.extend(official)
+        statuses[company['id']]={
+            'id':company['id'],'name':company['name'],'group':company['group'],
+            'sector':company['sector'],'url':company.get('url'),
+            'adapter':company['adapter'],'status':status,'detail':detail,
+            'checked_at':now,'official_count':len(official),'candidate_count':0,
+            'search_status':'검색 미실행','complete':complete,
+            'portal_links':portal_links(company['name']),'portal_results':{},
+            'alternative_careers_url':company.get('alternative_careers_url'),
+            'official_access':'보안 경고' if status=='보안오류' else ('접속 성공' if status in ('성공','제한') else '확인 불가'),
+        }
+        LOG.info('%-14s %-4s official=%d %s',company['id'],status,len(official),detail)
+        time.sleep(0.15)
+    if with_search:
+        # Bounded parallelism prevents 90 sequential RSS requests from making workflow appear frozen.
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            futures={executor.submit(fetch_boards,c):c['id'] for c in roster}
+            for fut in as_completed(futures):
+                company_id=futures[fut]
+                try:
+                    _,found,notes=fut.result()
+                except Exception as exc:
+                    found,notes=[],{'오류':type(exc).__name__}
+                discovered.extend(found)
+                statuses[company_id]['candidate_count']=sum(j['verification']=='search_unverified' for j in found)
+                statuses[company_id]['portal_results']=notes
+                statuses[company_id]['search_status']='전문 채용사이트 3곳 검색 시도' if notes else '검색 미실행'
+    jobs = reconcile(prev, deduplicate_sources(discovered), statuses, now)
+    result = {"version": "v04", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
+              "history": ([{"time":now, "jobs_official":sum(1 for j in jobs if j.get("verification")=="official" and j.get("status")=="진행"),
+                           "success":sum(s["status"]=="성공" for s in statuses.values()),
+                           "limited":sum(s["status"] in ("제한","미설정") for s in statuses.values()),
+                           "failed":sum(s["status"]=="실패" for s in statuses.values())}] + prev.get("history", []))[:30]}
+    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = DATA_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(DATA_FILE)
+    LOG.info("Wrote %s: %d jobs / %d companies", DATA_FILE, len(jobs), len(roster))
+    return result
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--no-search",action="store_true",help="disable RSS discovery when testing")
+    parser.add_argument("--verbose",action="store_true")
+    args = parser.parse_args()
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,format="%(asctime)s %(levelname)s %(message)s")
+    run(with_search=not args.no_search)
+))
+    start=next((x for x in headings if re.search(
+        '진행중인 채용정보|진행중 공고|진행 중 공고|진행중인 채용',x.get_text(' ',strip=True))),None)
+    if not start:return []
+    jobs=[];seen=set()
+    for node in start.next_elements:
+        if getattr(node,'name',None) in ('h1','h2','h3','h4','h5','h6') and node is not start:
+            if re.search(r'마감된 공고|지난 공고|동종업계|최근 본|고객센터|마감된 채용',node.get_text(' ',strip=True)):
+                break
+        if getattr(node,'name',None)!='a' or not node.get('href'):continue
+        url=urllib.parse.urljoin(page_url,node['href'])
+        if not is_portal_job_link(platform,url):continue
+        text=tidy(node.get_text(' ',strip=True))
+        if not text or re.search(r'마감\s*\(|접수마감|마감되었습니다',text):continue
+        title=re.split(r'\s+(?:신입·경력|경력무관|경력|신입|인턴|서울|경기|부산|인천|대전|대구|충남|충북|경북|경남|D-\d+|마감\s*\()',text,maxsplit=1)[0]
+        title=re.sub(r'\s*(?:스크랩|입사지원)
+    """Official Saramin search API requires approved key. Strict company matching."""
+    if not access_key: return [],'API 키 미설정(검색 링크 이용)'
+    try:
+        r=fetch(session,'https://oapi.saramin.co.kr/job-search?'+urllib.parse.urlencode({
+            'access-key':access_key,'keywords':company['name'],'count':75,'sort':'pd'}))
+        data=r.json()
+        if 'result' in data:
+            return [],'API 오류: '+tidy(data['result'].get('message',''))[:90]
+        records=(data.get('jobs') or {}).get('job') or []
+        if isinstance(records,dict):records=[records]
+        out=[]
+        for item in records:
+            employer=((item.get('company') or {}).get('detail') or {}).get('name','')
+            if company_identity(employer)!=company_identity(company['name']):continue
+            if str(item.get('active',0))!='1':continue
+            position=item.get('position') or {}
+            title=tidy(position.get('title',''))
+            url=item.get('url','')
+            if not title or not safe_link(url) or not host_allowed(url,('saramin.co.kr',)):continue
+            area=(position.get('location') or {}).get('name','')
+            deadline=None
+            end=item.get('expiration-timestamp')
+            if end and str(end).isdigit():
+                deadline=datetime.fromtimestamp(int(end),KST).date().isoformat()
+            job=base_job(company,title,url,location=area,deadline=deadline,reliability='platform_api')
+            job['source']='사람인 API (진행 확인)'
+            out.append(job)
+        return out,'API '+str(len(out))+'건 검증(해당기업 일치)'
+    except (requests.RequestException,ValueError,TypeError,OverflowError,KeyError) as e:
+        return [],'API 확인 실패: '+type(e).__name__
+
+
+def duplicate_signature(job: dict) -> tuple:
+    """Cross-provider conservative matching; leave ambiguous unknown work locations unmerged."""
+    title=tidy(job.get('title','')).lower()
+    title=re.sub(r'^\[[^]]{1,35}\]\s*','',title)
+    title=re.sub(r'\b(?:모집|채용|공고)\b','',title)
+    title=re.sub(r'[^가-힣a-z0-9]+','',title)
+    loc=tidy(job.get('location',''))
+    # Avoid merging different sites' ambiguous postings merely because title matches.
+    return job['company_id'],title,job.get('region','미상') if loc!='미상' else job.get('id')
+
+
+def deduplicate_sources(discovered: list[dict]) -> list[dict]:
+    # Keep one job per stable ID, preserve alternate source URLs and prefer verified official.
+    priorities={'official':0,'platform_api':1,'search_unverified':2,'official_unverified':3}
+    ordered=sorted(discovered,key=lambda j:priorities.get(j.get('verification'),9))
+    out={}; signatures={}
+    for j in ordered:
+        ident=duplicate_signature(j)
+        if ident in signatures:
+            prev=out[signatures[ident]]
+            if prev['url']!=j['url'] and not any(x.get('url')==j['url'] for x in prev['other_sources']):
+                prev['other_sources'].append({'source':j.get('source','대체 출처'),'url':j['url']})
+            continue
+        if j['id'] in out: continue
+        signatures[ident]=j['id']
+        out[j['id']]=j
+    return list(out.values())
+
+
+def load_previous() -> dict:
+    if not DATA_FILE.exists(): return {}
+    try:
+        raw = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        return raw if isinstance(raw, dict) else {}
+    except (ValueError,OSError):
+        return {}
+
+
+def reconcile(old_data: dict, discovered: list[dict], statuses: dict[str, dict], at: str) -> list[dict]:
+    old = {j["id"]: j for j in old_data.get("jobs", []) if isinstance(j, dict) and "id" in j}
+    fresh_ids = set()
+    baseline = not bool(old_data.get("last_run"))
+    today = datetime.fromisoformat(at).date()
+    for job in discovered:
+        job_id = job["id"]
+        if job_id in fresh_ids: continue
+        fresh_ids.add(job_id)
+        prev = old.get(job_id)
+        job["first_seen"] = (prev or {}).get("first_seen") or at
+        job["last_seen"] = at
+        job["missing_streak"] = 0
+        if job["verification"] not in VERIFIED_SOURCES:
+            # Never silently elevate an archived board or search result to an active posting.
+            if prev and prev.get("verification") in VERIFIED_SOURCES and job["verification"] == "search_unverified":
+                job["verification"] = "official"
+                job["status"] = "진행"
+            else:
+                job["status"] = "확인필요"
+        else:
+            job["status"] = "진행"
+        if job.get("deadline"):
+            try:
+                if datetime.fromisoformat(job["deadline"]).date() < today:
+                    job["status"] = "마감"
+            except ValueError:
+                job["deadline"] = None
+        job["new"] = not baseline and prev is None and job["verification"] in VERIFIED_SOURCES
+        old[job_id] = job
+    for job_id, job in old.items():
+        if job_id in fresh_ids: continue
+        src = statuses.get(job.get("company_id", ""), {})
+        if job.get("status") == "마감": continue
+        if job.get("deadline"):
+            try:
+                if datetime.fromisoformat(job["deadline"]).date() < today:
+                    job["status"] = "마감"
+                    job["new"] = False
+                    continue
+            except ValueError:
+                pass
+        # Absence from a verified complete list for two runs is a cautious signal, not proof.
+        if src.get("complete") is True and job.get("verification") == "official":
+            job["missing_streak"] = int(job.get("missing_streak") or 0) + 1
+            if job["missing_streak"] >= 2:
+                job["status"] = "확인필요"  # Never falsely claim closed from disappearance alone.
+        job["new"] = False
+    for j in old.values():
+        # Backfill worksite classification for v01 history without dropping old jobs.
+        j["work_scope"] = classify_work_scope(j.get("location", ""), j.get("region", "미상"))
+    return sorted(old.values(), key=lambda j:(j["status"]!="진행",not j.get("new", False),j.get("first_seen", "")), reverse=False)
+
+
+def run(*, with_search: bool = True, session: requests.Session | None = None) -> dict:
+    roster = json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
+    prev = load_previous()
+    now = iso_now()
+    session = session or requests.Session()
+    session.headers.update({"User-Agent": USER_AGENT, "Accept": "text/html,application/json,application/rss+xml;q=0.7,*/*;q=0.5", "Accept-Language":"ko-KR,ko;q=0.9,en;q=0.7"})
+    discovered = []
+    statuses = {}
+    saramin_key=os.environ.get('SARAMIN_ACCESS_KEY','').strip()
+    # Search indexes provide candidates only. No passwords, cookie replay, or blocked-site bypass.
+    def fetch_boards(company):
+        local=requests.Session()
+        local.headers.update(session.headers)
+        found=[]; notes={}
+        for board in BOARD_SITES:
+            matches,note=rss_board_candidates(company,board,local)
+            found.extend(matches)
+            notes[board]=note
+        if saramin_key:
+            verified,note=saramin_api_candidates(local,company,saramin_key)
+            found.extend(verified)
+            notes['사람인 API']=note
+        else:
+            notes['사람인 API']='API 키 미설정(검색후보만 표시)'
+        local.close()
+        return company['id'],found,notes
+
+    for company in roster:
+        official,status,detail,complete=scrape_official(session,company)
+        discovered.extend(official)
+        statuses[company['id']]={
+            'id':company['id'],'name':company['name'],'group':company['group'],
+            'sector':company['sector'],'url':company.get('url'),
+            'adapter':company['adapter'],'status':status,'detail':detail,
+            'checked_at':now,'official_count':len(official),'candidate_count':0,
+            'search_status':'검색 미실행','complete':complete,
+            'portal_links':portal_links(company['name']),'portal_results':{},
+            'alternative_careers_url':company.get('alternative_careers_url'),
+            'official_access':'보안 경고' if status=='보안오류' else ('접속 성공' if status in ('성공','제한') else '확인 불가'),
+        }
+        LOG.info('%-14s %-4s official=%d %s',company['id'],status,len(official),detail)
+        time.sleep(0.15)
+    if with_search:
+        # Bounded parallelism prevents 90 sequential RSS requests from making workflow appear frozen.
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            futures={executor.submit(fetch_boards,c):c['id'] for c in roster}
+            for fut in as_completed(futures):
+                company_id=futures[fut]
+                try:
+                    _,found,notes=fut.result()
+                except Exception as exc:
+                    found,notes=[],{'오류':type(exc).__name__}
+                discovered.extend(found)
+                statuses[company_id]['candidate_count']=sum(j['verification']=='search_unverified' for j in found)
+                statuses[company_id]['portal_results']=notes
+                statuses[company_id]['search_status']='전문 채용사이트 3곳 검색 시도' if notes else '검색 미실행'
+    jobs = reconcile(prev, deduplicate_sources(discovered), statuses, now)
+    result = {"version": "v03", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
+              "history": ([{"time":now, "jobs_official":sum(1 for j in jobs if j.get("verification")=="official" and j.get("status")=="진행"),
+                           "success":sum(s["status"]=="성공" for s in statuses.values()),
+                           "limited":sum(s["status"] in ("제한","미설정") for s in statuses.values()),
+                           "failed":sum(s["status"]=="실패" for s in statuses.values())}] + prev.get("history", []))[:30]}
+    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = DATA_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(DATA_FILE)
+    LOG.info("Wrote %s: %d jobs / %d companies", DATA_FILE, len(jobs), len(roster))
+    return result
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--no-search",action="store_true",help="disable RSS discovery when testing")
+    parser.add_argument("--verbose",action="store_true")
+    args = parser.parse_args()
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,format="%(asctime)s %(levelname)s %(message)s")
+    run(with_search=not args.no_search)
+,'',title).strip()
+        if len(title)<5 or NOT_JOB.search(title):continue
+        bracket=re.match(r'^\[([^]\n]{2,50})\]',title)
+        if bracket and not (company_identity(company['name']) in company_identity(bracket.group(1)) or
+                           company_identity(bracket.group(1)) in company_identity(company['name'])):
+            continue
+        url=normalized_url(url)
+        if url in seen:continue
+        seen.add(url)
+        context=tidy(node.parent.get_text(' ',strip=True)) if node.parent else text
+        loc_match=re.search(r'(서울|경기|인천|부산|대전|대구|세종|광주|울산|충북|충남|전북|전남|경북|경남|제주|강원)(?:\s*[가-힣0-9]+[시군구동])?',context)
+        job=base_job(company,title,url,location=loc_match.group(0) if loc_match else '',detail=context[:300],reliability='search_unverified')
+        job['source']=platform+' 기업별 공개 채용목록'
+        job['status']='확인필요'
+        jobs.append(job)
+        if len(jobs)>=45:break
+    return jobs
+
+def portal_company_page_candidates(session:requests.Session,company:dict,platform:str,page_url:str)->tuple[list[dict],str]:
+    if not safe_link(page_url) or not host_allowed(page_url,(BOARD_SITES[platform],)):
+        return [],'기업별 목록 URL 확인 필요'
+    allowed,reason=robots_permission(session,page_url)
+    if not allowed:return [],reason
+    try:
+        resp=fetch(session,page_url)
+        if not host_allowed(resp.url,(BOARD_SITES[platform],)):
+            return [],'사이트 간 리다이렉션으로 검사 중단'
+        jobs=extract_portal_company_jobs(company,platform,resp.text,resp.url)
+        return jobs,('공개 기업별 목록 후보 '+str(len(jobs))+'건') if jobs else '목록 접속·공고 링크 판독 0건'
+    except (requests.RequestException,ValueError) as e:
+        return [],'기업별 목록 확인 실패: '+type(e).__name__
 
 def saramin_api_candidates(session: requests.Session, company: dict, access_key: str) -> tuple[list[dict],str]:
     """Official Saramin search API requires approved key. Strict company matching."""
