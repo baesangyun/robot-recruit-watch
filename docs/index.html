@@ -1,0 +1,123 @@
+<!-- /**************************************************************
+ * @name 로봇 채용 레이더 단일페이지
+ * @file docs/index.html
+ * @version v01
+ * @description PC·모바일 채용 통합 대시보드 마크업
+ * @author OpenAI ChatGPT
+ * @date 2026-10-16
+ * @Revisions
+ * - 현재 버전:
+ *   1) 채용 공고/수집 상태/이력 단일 화면
+ * - 이전 버전:
+ *   1) 최초 작성
+ **************************************************************/ -->
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="theme-color" content="#071b31"/>
+  <meta name="description" content="국내 주요 로봇기업 채용공고 자동 모니터링 — 신규·진행·마감, 직무와 지역 필터"/>
+  <title>ROBOT WATCH | 국내 로봇기업 채용 레이더 v01</title>
+  <link rel="stylesheet" href="./styles.css"/>
+  <script defer src="./seed.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" aria-label="사이드바">
+    <a href="#top" class="logo" aria-label="Robot Watch 처음으로">
+      <span class="logo-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M16 3 28 10v12l-12 7-12-7V10L16 3Z" stroke="currentColor" stroke-width="2"/><path d="m8 12 8-5 8 5v8l-8 5-8-5v-8Z" stroke="currentColor" stroke-width="1.6"/><circle cx="16" cy="16" r="3" fill="currentColor"/></svg></span>
+      <span class="logo-type">ROBOT<span>WATCH</span><small>RECRUITMENT INTELLIGENCE</small></span>
+    </a>
+    <div class="side-overline">WORKSPACE</div>
+    <nav class="side-nav" aria-label="섹션 전환">
+      <button data-view="jobs" class="side-nav-item active" type="button"><span class="nav-icon">▦</span><span>채용 공고</span><span id="nav-job-count" class="nav-amount">0</span></button>
+      <button data-view="companies" class="side-nav-item" type="button"><span class="nav-icon">◎</span><span>기업 수집 현황</span><span id="nav-company-count" class="nav-amount">30</span></button>
+      <button data-view="history" class="side-nav-item" type="button"><span class="nav-icon">◷</span><span>수집 실행 이력</span></button>
+    </nav>
+    <div class="side-overline spaced">QUICK FILTER</div>
+    <div class="side-quick" role="group" aria-label="빠른 직무 필터">
+      <button type="button" class="quick-role" data-role="유지보수·CS"><span class="role-dot blue"></span>유지보수 / CS</button>
+      <button type="button" class="quick-role" data-role="SI·자동화"><span class="role-dot green"></span>로봇 SI / 자동화</button>
+      <button type="button" class="quick-role" data-role="영업·사업"><span class="role-dot amber"></span>영업 / 사업개발</button>
+      <button type="button" class="quick-role" data-role="SW·AI"><span class="role-dot lavender"></span>SW / AI 개발</button>
+    </div>
+    <div class="side-bottom">
+      <div class="side-activity"><span class="pulse-dot"></span><span>일일 자동 점검 설정</span></div>
+      <p>GitHub Actions로 수집<br/>GitHub Pages로 공개</p>
+      <div class="side-meta">© 2026 ROBOT WATCH <span>v01</span></div>
+    </div>
+  </aside>
+  <main class="main" id="top">
+    <div class="topline"><span><strong>ROBOT WATCH</strong><span class="top-divider">/</span> 대한민국 로보틱스 산업 채용 동향</span><span class="date-now" id="date-now">—</span></div>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-glow"></div><div class="hero-grid"></div>
+      <div class="hero-body">
+        <div class="eyebrow"><span class="eyebrow-symbol"></span> KOREA ROBOTICS RECRUITMENT MONITOR</div>
+        <h1 id="hero-title">로봇 산업의 기회를<br/><em>한눈에.</em></h1>
+        <p>대기업부터 상장사·전문 로봇기업까지,<br/>새로운 채용 소식을 매일 하나의 화면에서 확인하세요.</p>
+        <div class="hero-footer">
+          <span class="hero-pill"><span class="tiny-circle"></span><strong id="hero-company-count">30</strong>개 모니터링 기업</span>
+          <span class="hero-pill">최종 수집 <strong id="last-sync">수집 전</strong></span>
+        </div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="orbit orbit-1"></div><div class="orbit orbit-2"></div><div class="orbit orbit-3"></div>
+        <div class="orbit-center"><div class="hex-symbol"><svg viewBox="0 0 96 96" fill="none"><path d="M48 8 82.64 28v40L48 88 13.36 68V28L48 8Z" stroke="currentColor" stroke-width="2.5"/><path d="M48 26 68 37.5v23L48 72 28 60.5v-23L48 26Z" stroke="currentColor" stroke-width="3"/><circle cx="48" cy="49" r="9" fill="currentColor"/></svg></div></div>
+        <span class="orbit-node n1"></span><span class="orbit-node n2"></span><span class="orbit-node n3"></span><span class="orbit-node n4"></span>
+        <span class="art-label label-1">CAREER DATA <b>●</b></span><span class="art-label label-2">LIVE TRACKING <b>↗</b></span>
+      </div>
+    </section>
+
+    <div class="notice" id="notice"><span class="notice-icon">ⓘ</span><span id="notice-text">배포 후 첫 자동 수집을 실행하면 공고가 표시됩니다. 첫 수집 전에는 실제 채용 건수를 알 수 없습니다.</span><a href="#sources" id="notice-link">수집 상태 보기 ↗</a></div>
+
+    <section class="stats" aria-label="채용 요약">
+      <div class="stat-card"><div class="stat-label">신규 발견 <span class="stat-symbol teal">↗</span></div><div class="stat-main"><strong id="stat-new">0</strong><small>건</small></div><p>직전 실행 후 공식 페이지 신규</p></div>
+      <div class="stat-card"><div class="stat-label">진행 중 <span class="stat-symbol blue">◎</span></div><div class="stat-main"><strong id="stat-active">0</strong><small>건</small></div><p>공식 목록 확인 기준</p></div>
+      <div class="stat-card"><div class="stat-label">마감 <span class="stat-symbol amber">◷</span></div><div class="stat-main"><strong id="stat-closed">0</strong><small>건</small></div><p>기록 중 마감기한 경과</p></div>
+      <div class="stat-card"><div class="stat-label">수집 성공 기업 <span class="stat-symbol green">✓</span></div><div class="stat-main"><strong id="stat-success">0</strong><small id="stat-success-total">/ 30</small></div><p>공식 공고 목록 판독 성공</p></div>
+    </section>
+
+    <section id="jobs-view" class="view-panel">
+      <div class="section-heading"><div><span class="section-kicker">01 / JOB BOARD</span><h2>통합 채용 공고</h2><p>공고 제목을 클릭하면 실제 채용 페이지로 연결됩니다.</p></div><div class="section-tools"><button id="download-csv" class="button-outline" type="button">⇩ <span>CSV 내려받기</span></button></div></div>
+      <div class="board">
+        <div class="tab-bar" role="group" aria-label="채용 상태">
+          <button class="tab active" data-status="all" type="button">전체 <span id="num-all">0</span></button>
+          <button class="tab" data-status="new" type="button">신규 <span id="num-new">0</span></button>
+          <button class="tab" data-status="진행" type="button">진행 <span id="num-active">0</span></button>
+          <button class="tab" data-status="마감" type="button">마감 <span id="num-closed">0</span></button>
+          <button class="tab" data-status="확인필요" type="button">확인 필요 <span id="num-pending">0</span></button>
+        </div>
+        <div class="filters">
+          <label class="search-box"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="회사명, 채용 직무 검색..." aria-label="회사명 또는 채용 직무 검색"/></label>
+          <label class="select-wrap"><span class="sr-only">직무</span><select id="filter-role"><option value="">전체 직무</option></select></label>
+          <label class="select-wrap"><span class="sr-only">지역</span><select id="filter-region"><option value="">전체 지역</option></select></label>
+          <label class="select-wrap"><span class="sr-only">기업</span><select id="filter-company"><option value="">전체 기업</option></select></label>
+          <button class="reset" id="reset" title="필터 초기화" type="button">↻</button>
+        </div>
+        <div class="table-intro"><span><b id="result-count">0</b>개 공고 검색됨 <span class="muted">· 확인 필요 공고는 원문 확인 후 지원하세요</span></span><select id="sort" aria-label="공고 정렬"><option value="recent">최근 발견순</option><option value="deadline">마감 가까운순</option><option value="company">기업명순</option></select></div>
+        <div class="table-scroll"><table class="jobs-table"><thead><tr><th>기업명 / 구분</th><th>채용 직무</th><th>직무 분야</th><th>근무지역</th><th>마감</th><th>상태</th><th class="last-head">원문</th></tr></thead><tbody id="jobs-body"></tbody></table></div>
+        <div class="empty" id="empty-jobs" hidden><div class="empty-illustration"><span>⌕</span></div><h3>표시할 채용공고가 없습니다</h3><p id="empty-reason">첫 자동 수집이 완료되면 결과가 여기에 표시됩니다.</p><button type="button" id="empty-go-companies">기업별 수집 현황 확인 ↗</button></div>
+        <div class="board-bottom"><span id="page-info">—</span><div class="page-actions"><button id="prev-page" type="button">← 이전</button><button id="next-page" type="button">다음 →</button></div></div>
+      </div>
+    </section>
+
+    <section id="companies-view" class="view-panel" hidden>
+      <div class="section-heading"><div><span class="section-kicker">02 / SOURCE HEALTH</span><h2>기업별 수집 현황</h2><p>공식 목록의 판독 성공 여부와 검색 후보 확인을 별도로 표시합니다.</p></div></div>
+      <div class="health-legend"><span><i class="legend-dot good"></i> 성공 · 공고 판독 가능</span><span><i class="legend-dot partial"></i> 제한 · 접속은 가능, 판독 제한</span><span><i class="legend-dot failed"></i> 실패 · 연결 오류</span><span><i class="legend-dot idle"></i> 미설정/미실행</span></div>
+      <div class="source-board" id="sources"><div class="source-toolbar"><span><strong id="companies-total">30</strong>개 대상 기업</span><label>기업 검색 <input type="search" id="company-search" placeholder="기업명 찾기..."/></label></div><div class="table-scroll"><table class="companies-table"><thead><tr><th>기업명</th><th>분류</th><th>수집 상태</th><th>공식 목록</th><th>검색 후보</th><th>최근 확인 / 사유</th><th>바로가기</th></tr></thead><tbody id="companies-body"></tbody></table></div></div>
+      <div class="footnote">* ‘성공’은 공고 목록을 읽었다는 뜻이며 전체 채용공고를 누락 없이 확보했다는 보증은 아닙니다. ‘제한’과 ‘미설정’을 0건 채용으로 해석하지 마세요. 검색 후보는 지원 전 원문 확인이 필요합니다.</div>
+    </section>
+
+    <section id="history-view" class="view-panel" hidden>
+      <div class="section-heading"><div><span class="section-kicker">03 / RUN HISTORY</span><h2>자동 수집 실행 이력</h2><p>하루 1회(한국시간 오전 7시 10분 전후) GitHub Actions에서 수행합니다.</p></div></div>
+      <div class="source-board"><div class="table-scroll"><table class="companies-table"><thead><tr><th>실행 시각 (KST)</th><th>확인된 진행 공고</th><th>수집 성공</th><th>수집 제한</th><th>수집 실패</th></tr></thead><tbody id="history-body"></tbody></table></div><div class="empty compact" id="empty-history" hidden><h3>실행 기록이 아직 없습니다</h3><p>GitHub 저장소의 Actions 탭에서 첫 실행을 시작하세요.</p></div></div>
+      <div class="howto"><div class="step-circle">1</div><div><h3>매일 자동 갱신 방식</h3><p>GitHub Actions가 기업별 공식 페이지와 허용된 공개 검색 소스를 점검하고 JSON을 갱신합니다. 이후 GitHub Pages가 바뀐 데이터를 표시합니다. 별도의 PC 상시 실행은 필요하지 않습니다.</p></div></div>
+    </section>
+
+    <footer class="footer"><span>ROBOT WATCH <strong>v01</strong> · 국내 로봇기업 채용 레이더</span><span>출처: 기업 공식 채용페이지 · 확인이 필요한 검색 결과는 별도 표기</span></footer>
+  </main>
+</div>
+</body>
+</html>
