@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 로봇 채용 일일 수집 및 웹 배포
 #  * @file .github/workflows/daily-monitor.yml
-#  * @version v03
-#  * @description GitHub Actions 매일 KST 07:10 수집 → 기록 저장 → GitHub Pages 갱신
+#  * @version v04
+#  * @description 매일 KST 10:00·15:00 및 수동 실행 → 데이터 저장 → GitHub Pages 갱신
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-16
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 오전 10시·오후 3시 두 차례 정기 실행(한국 표준시) 및 수동 실행 유지
 #  *   1) 사람인 승인 API 키를 GitHub Secret으로 선택적 전달
 #  *   1) 매일 예약/수동 실행/최초 업로드 실행
 #  *   2) 이력 JSON 변경 커밋 및 GitHub Pages 발행
@@ -17,8 +18,9 @@ name: Robot Watch Daily Monitor
 on:
   workflow_dispatch:
   schedule:
-    # 22:10 UTC = next-day 07:10 KST (may be delayed by GitHub)
-    - cron: '10 22 * * *'
+    # UTC 01:00 = 10:00 KST, UTC 06:00 = 15:00 KST (GitHub may delay runs).
+    - cron: '0 1 * * *'
+    - cron: '0 6 * * *'
   push:
     branches: [main]
 permissions:

@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 국내 로봇 채용 모니터 단위테스트
 #  * @file tests/test_collect.py
-#  * @version v05
+#  * @version v06
 #  * @description 기업 수·HTML 공고 파싱·중복/신규/마감 오판 방지 테스트
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-16
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 수집 예약 KST 10시·15시와 인증된 Actions 수동 실행 링크 회귀 검사
 #  *   1) LinkedIn 검색 공고 링크·기업명·모집 여부 오판 방지
 #  *   1) v03: 채용전문사이트 후보 및 승인 API 연동, 목록 가독성·정렬·수집 오류 확인
 #  *   1) 신뢰 구분 및 첫 실행 신규 제외 확인
@@ -267,3 +268,23 @@ def test_linkedin_results_are_unverified():
     jobs, note = rss_board_candidates(company, "LinkedIn", MockSession(MockResp(xml)))
     assert len(jobs) == 1 and jobs[0]["source"] == "LinkedIn 검색후보"
     assert jobs[0]["verification"] == "search_unverified" and jobs[0]["status"] == "확인필요"
+
+
+
+def test_twice_daily_kst_schedule_and_manual_dispatch():
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    wf = (root/'.github/workflows/daily-monitor.yml').read_text(encoding='utf-8')
+    assert '  workflow_dispatch:' in wf
+    assert "cron: '0 1 * * *'" in wf  # UTC 01:00 = KST 10:00
+    assert "cron: '0 6 * * *'" in wf  # UTC 06:00 = KST 15:00
+    assert "cron: '10 22 * * *'" not in wf
+    html = (root/'docs/index.html').read_text(encoding='utf-8')
+    assert '10:00 · 15:00' in html
+    assert 'GitHub에서 <b>Run workflow → Run workflow</b>' in html
+    assert 'https://github.com/baesangyun/robot-recruit-watch/actions/workflows/daily-monitor.yml' in html
+    assert '수동 실행' in html
+    # No GitHub personal token is exposed to the public static page.
+    assert 'github_pat_' not in html and 'ghp_' not in html
+
+
