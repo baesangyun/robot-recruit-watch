@@ -210,7 +210,7 @@ def test_frontend_100_per_page_and_group_desc_sort():
     app=(Path(__file__).resolve().parents[1]/'docs/app.js').read_text()
     assert 'pageSize: 100' in app
     assert "(b.group||'').localeCompare(a.group||'','ko')" in app
-    assert "['잡코리아','사람인','인크루트']" in app
+    assert "['잡코리아','사람인','인크루트','LinkedIn']" in app
 
 
 def test_angel_official_career_address():
