@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 국내 로봇기업 채용 자동수집기
 #  * @file crawler/collect.py
-#  * @version v04
+#  * @version v05
 #  * @description 공식 채용페이지/공개 공고 피드 수집, 신규·진행·마감 판정, 기업별 검사 기록
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-16
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) LinkedIn 색인 공고 링크 및 기업별 직접 검색 추가
 #  *   1) v03: 채용전문사이트 후보 및 승인 API 연동, 목록 가독성·정렬·수집 오류 확인
 #  *   1) 30개 기업 모니터링 및 출처별 신뢰도/수집 상태 분리
 #  *   2) 최초 스냅샷은 신규로 오판하지 않고 검증된 소스에만 종료 처리
@@ -78,10 +79,10 @@ HIRE_HINT = re.compile(r"채용|모집|인재|엔지니어|개발자|연구원|�
 NOT_JOB = re.compile(r"채용공고$|채용정보$|채용안내$|공지사항|채용절차|FAQ|privacy|career$|recruit$|지원방법|접수방법|기업문화|회원가입|로그인|목록|더보기|홈페이지|인재풀 등록$|전체 공고", re.I)
 NO_OPENINGS = re.compile(r"(현재|진행.?중인|등록된).{0,12}(채용|공고).{0,15}(없|0건)|no (open|available|current) (positions|jobs|openings)", re.I)
 DATE_RX = re.compile(r"(20\d\d)[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})")
-BOARD_SITES = {"잡코리아": "jobkorea.co.kr", "사람인": "saramin.co.kr", "인크루트": "incruit.com"}
+BOARD_SITES = {"잡코리아": "jobkorea.co.kr", "사람인": "saramin.co.kr", "인크루트": "incruit.com", "LinkedIn": "linkedin.com"}
 VERIFIED_SOURCES = {"official", "platform_api"}
 COMPANY_BOARD_FILE = ROOT / 'board_company_pages.json'
-RSS_HOSTS = ("jobkorea.co.kr", "saramin.co.kr", "incruit.com", "wanted.co.kr", "career.greetinghr.com", "ninehire.site", "breezy.hr", "recruit.hd.com", "career.doosan.com", "hanwhain.com", "rainbow-robotics.com", "yujinrobot.com", "angel-robotics.com")
+RSS_HOSTS = ("jobkorea.co.kr", "saramin.co.kr", "incruit.com", "linkedin.com", "wanted.co.kr", "career.greetinghr.com", "ninehire.site", "breezy.hr", "recruit.hd.com", "career.doosan.com", "hanwhain.com", "rainbow-robotics.com", "yujinrobot.com", "angel-robotics.com")
 
 
 def iso_now() -> str:
@@ -363,10 +364,32 @@ def rss_candidates(session: requests.Session, company: dict) -> tuple[list[dict]
         return [], "검색 실패: " + str(e)[:95]
 
 
+# Employer aliases only for indexed-link searches. No direct LinkedIn scraping.
+LINKEDIN_NAMES = {
+    "한화로보틱스": "Hanwha Robotics", "두산로보틱스": "Doosan Robotics",
+    "HD현대로보틱스": "HD Hyundai Robotics", "레인보우로보틱스": "Rainbow Robotics",
+    "로보티즈": "ROBOTIS", "뉴로메카": "Neuromeka",
+    "베어로보틱스": "Bear Robotics", "엔젤로보틱스": "Angel Robotics",
+    "고영테크놀러지": "Koh Young Technology", "유진로봇": "Yujin Robot",
+    "유일로보틱스": "Yuil Robotics", "로보스타": "Robostar",
+    "클로봇": "Clobot", "트위니": "Twinny", "티로보틱스": "T-Robotics",
+    "에브리봇": "Everybot", "로보로보": "RoboRobo",
+    "에스비비테크": "SBB Tech", "에스피지": "SPG",
+    "하이젠알앤엠": "Higen RNM", "브이디컴퍼니": "VD Company",
+    "뉴빌리티": "Neubility", "로보케어": "Robocare",
+    "큐렉소": "Curexo", "라온테크": "Raontech",
+    "휴림로봇": "Hyulim Robot",
+    "로보쓰리에이아이앤로보틱스": "Robo3 AI & Robotics",
+}
+
+
 def board_search_url(platform: str, company_name: str) -> str:
     """Public search index query only; not a portal content scraper or authorized API."""
     domain = BOARD_SITES[platform]
-    query = 'site:' + domain + ' "' + company_name + '" 채용'
+    if platform == "LinkedIn":
+        query = 'site:linkedin.com/jobs/view/ "' + LINKEDIN_NAMES.get(company_name,company_name) + '"'
+    else:
+        query = 'site:' + domain + ' "' + company_name + '" 채용'
     return "https://www.bing.com/search?format=rss&q=" + urllib.parse.quote(query)
 
 
@@ -377,6 +400,7 @@ def portal_links(company_name: str) -> dict[str,str]:
         "잡코리아": "https://www.jobkorea.co.kr/Search/?stext=" + q,
         "사람인": "https://www.saramin.co.kr/zf_user/search/recruit?searchword=" + q,
         "인크루트": "https://search.incruit.com/list/search.asp?col=job&kw=" + q,
+        "LinkedIn": "https://www.linkedin.com/jobs/search/?keywords=" + urllib.parse.quote(LINKEDIN_NAMES.get(company_name,company_name)) + "&location=South%20Korea",
     }
 
 
@@ -384,6 +408,22 @@ def company_identity(text: str) -> str:
     """Normalize common legal entity wrappers but DO NOT equate affiliates."""
     value=tidy(text).lower().replace('㈜','').replace('(주)','').replace('주식회사','')
     return re.sub(r'[^가-힣a-z0-9]+','',value)
+
+
+def is_indexed_linkedin_job(company: dict, title: str, link: str, description: str = "") -> bool:
+    """Indexed individual job links only. No LinkedIn HTML or API requests."""
+    if not safe_link(link) or not host_allowed(link, ("linkedin.com",)):
+        return False
+    path = urllib.parse.urlsplit(link).path
+    if not re.fullmatch(r"/jobs/view/[^/?#]+/?", path) or not re.search(r"\d{8,}",path):
+        return False
+    names = [company["name"], LINKEDIN_NAMES.get(company["name"], "")]
+    title_id = company_identity(title)
+    in_title = any(company_identity(n) in title_id for n in names if n)
+    slug = urllib.parse.unquote(path.lower()).rstrip("/").rsplit("/",1)[-1]
+    match = re.search(r"-at-(.+?)-\d{8,}$", slug)
+    in_slug = bool(match and any(company_identity(n) == company_identity(match.group(1).replace("-", " ")) for n in names if n))
+    return (in_title or in_slug) and bool(HIRE_HINT.search(title + " " + description))
 
 
 def rss_board_candidates(company: dict, platform: str, session: requests.Session) -> tuple[list[dict],str]:
@@ -401,11 +441,13 @@ def rss_board_candidates(company: dict, platform: str, session: requests.Session
             desc=tidy(BeautifulSoup(el.findtext('description') or '', 'html.parser').get_text(' '))
             if not safe_link(link) or not host_allowed(link,(BOARD_SITES[platform],)):
                 continue
-            # Avoid cross-company attribution: exact company name in title or snippet is mandatory.
-            normalized_title=company_identity(title)
-            if company_identity(company['name']) not in normalized_title:
-                continue
-            if not HIRE_HINT.search(title) or NOT_JOB.search(title):
+            if platform == "LinkedIn":
+                # Public search index only; never claim an indexed job is currently open.
+                if not is_indexed_linkedin_job(company, title, link, desc): continue
+            else:
+                normalized_title=company_identity(title)
+                if company_identity(company['name']) not in normalized_title: continue
+            if not HIRE_HINT.search(title + " " + desc) or NOT_JOB.search(title):
                 continue
             canonical=normalized_url(link)
             if canonical in seen: continue
@@ -615,9 +657,9 @@ def run(*, with_search: bool = True, session: requests.Session | None = None) ->
                 discovered.extend(found)
                 statuses[company_id]['candidate_count']=sum(j['verification']=='search_unverified' for j in found)
                 statuses[company_id]['portal_results']=notes
-                statuses[company_id]['search_status']='전문 채용사이트 3곳 검색 시도' if notes else '검색 미실행'
+                statuses[company_id]['search_status']='전문 채용사이트 4곳 검색 시도' if notes else '검색 미실행'
     jobs = reconcile(prev, deduplicate_sources(discovered), statuses, now)
-    result = {"version": "v04", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
+    result = {"version": "v05", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
               "history": ([{"time":now, "jobs_official":sum(1 for j in jobs if j.get("verification")=="official" and j.get("status")=="진행"),
                            "success":sum(s["status"]=="성공" for s in statuses.values()),
                            "limited":sum(s["status"] in ("제한","미설정") for s in statuses.values()),

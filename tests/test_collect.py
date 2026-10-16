@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 국내 로봇 채용 모니터 단위테스트
 #  * @file tests/test_collect.py
-#  * @version v04
+#  * @version v05
 #  * @description 기업 수·HTML 공고 파싱·중복/신규/마감 오판 방지 테스트
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-16
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) LinkedIn 검색 공고 링크·기업명·모집 여부 오판 방지
 #  *   1) v03: 채용전문사이트 후보 및 승인 API 연동, 목록 가독성·정렬·수집 오류 확인
 #  *   1) 신뢰 구분 및 첫 실행 신규 제외 확인
 #  *   2) HTML 추출 및 종료 판정 테스트
@@ -241,3 +242,28 @@ def test_portal_obeys_robots_disallow():
             return MockResp(text='User-agent: *\\nDisallow: /')
     ok,reason=can_collect(Block(),'https://www.jobkorea.co.kr/company/42816603/recruit')
     assert not ok and 'robots' in reason
+
+
+from crawler.collect import is_indexed_linkedin_job, LINKEDIN_NAMES
+from urllib.parse import unquote
+
+def test_linkedin_index_search_added():
+    assert BOARD_SITES["LinkedIn"] == "linkedin.com"
+    links = portal_links("두산로보틱스")
+    assert "Doosan%20Robotics" in links["LinkedIn"]
+    assert "site:linkedin.com/jobs/view/" in unquote(board_search_url("LinkedIn","두산로보틱스"))
+
+def test_linkedin_link_rejects_unrelated_or_nonposting_url():
+    company = {"name": "베어로보틱스"}
+    url = "https://kr.linkedin.com/jobs/view/robotics-field-engineer-at-bear-robotics-4462189836"
+    assert is_indexed_linkedin_job(company, "Bear Robotics Robotics Field Engineer", url)
+    assert not is_indexed_linkedin_job(company, "Other Company Field Engineer", url.replace("bear-robotics","other-co"))
+    assert not is_indexed_linkedin_job(company, "Bear Robotics Field Engineer","https://www.linkedin.com/jobs/search/?keywords=Bear")
+    assert not is_indexed_linkedin_job(company, "Bear Robotics Field Engineer","https://linkedin.com.evil.com/jobs/view/post-4462189836")
+
+def test_linkedin_results_are_unverified():
+    company = {"id": "doosan", "name": "두산로보틱스"}
+    xml = '<rss><channel><item><title>Doosan Robotics Field Engineer 채용 | LinkedIn</title><link>https://kr.linkedin.com/jobs/view/field-engineer-at-doosan-robotics-4397947416</link><description>Doosan Robotics Engineer</description></item><item><title>OtherCo Field Engineer</title><link>https://www.linkedin.com/jobs/view/engineer-at-otherco-4389057279</link></item></channel></rss>'
+    jobs, note = rss_board_candidates(company, "LinkedIn", MockSession(MockResp(xml)))
+    assert len(jobs) == 1 and jobs[0]["source"] == "LinkedIn 검색후보"
+    assert jobs[0]["verification"] == "search_unverified" and jobs[0]["status"] == "확인필요"

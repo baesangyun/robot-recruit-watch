@@ -1,12 +1,13 @@
 /**************************************************************
  * @name 국내 로봇기업 채용 대시보드
  * @file docs/app.js
- * @version v03
+ * @version v04
  * @description 채용/수집현황/이력 단일페이지, 신규/마감/직무/지역/기업 검색, CSV
  * @author OpenAI ChatGPT
  * @date 2026-10-16
  * @Revisions
  * - 현재 버전:
+ *   1) LinkedIn 기업별 검색 링크 및 색인 후보 안내
  *   1) v03: 채용전문사이트 후보 및 승인 API 연동, 목록 가독성·정렬·수집 오류 확인
  *   1) 동적 JSON 로드, 공식공고와 확인필요 검색결과 엄격 구분
  *   2) 30개사 상태판, 필터, 페이지 이동 및 CSV 다운로드
@@ -181,7 +182,7 @@
       const u=safelyOpen(c.url);
       if(u)links.append(el('a',{class:'source-link',href:u,target:'_blank',rel:'noopener noreferrer',text:'공식 ↗'}));
       if(c.alternative_careers_url){const alt=safelyOpen(c.alternative_careers_url);if(alt)links.append(el('a',{class:'source-link',href:alt,target:'_blank',rel:'noopener noreferrer',text:'대체 채용목록 ↗'}));}
-      for(const site of ['잡코리아','사람인','인크루트']){
+      for(const site of ['잡코리아','사람인','인크루트','LinkedIn']){
         const target=safelyOpen((c.portal_links||{})[site]);
         if(target)links.append(el('a',{class:'board-link',href:target,target:'_blank',rel:'noopener noreferrer',text:site+' ↗'}));
       }
@@ -213,7 +214,7 @@
     const csv='\ufeff'+[cols,...rows].map(row=>row.map(value=>'"'+clean(value).replace(/^[=+@-]/,'\'$&').replace(/"/g,'""')+'"').join(',')).join('\r\n');
     const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
     const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download='국내_로봇기업_채용현황_v03_'+new Date().toISOString().slice(0,10)+'.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    const a=document.createElement('a');a.href=url;a.download='국내_로봇기업_채용현황_v04_'+new Date().toISOString().slice(0,10)+'.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
   function bind(){
     document.querySelectorAll('.side-nav-item').forEach(b=>b.addEventListener('click',()=>{displayView(b.dataset.view);window.scrollTo({top:0,behavior:'smooth'});}));

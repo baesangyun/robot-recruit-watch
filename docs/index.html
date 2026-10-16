@@ -1,12 +1,13 @@
 <!-- /**************************************************************
  * @name 로봇 채용 레이더 단일페이지
  * @file docs/index.html
- * @version v03
+ * @version v04
  * @description PC·모바일 채용 통합 대시보드 마크업
  * @author OpenAI ChatGPT
  * @date 2026-10-16
  * @Revisions
  * - 현재 버전:
+ *   1) LinkedIn 공고 검색 링크 표시
  *   1) v03: 채용전문사이트 후보 및 승인 API 연동, 목록 가독성·정렬·수집 오류 확인
  *   1) 채용 공고/수집 상태/이력 단일 화면
  * - 이전 버전:
@@ -19,7 +20,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="theme-color" content="#071b31"/>
   <meta name="description" content="국내 주요 로봇기업 채용공고 자동 모니터링 — 신규·진행·마감, 직무와 지역 필터"/>
-  <title>ROBOT WATCH | 국내 로봇기업 채용 레이더 v03</title>
+  <title>ROBOT WATCH | 국내 로봇기업 채용 레이더 v04</title>
   <link rel="stylesheet" href="./styles.css"/>
   <script defer src="./seed.js"></script>
   <script defer src="./app.js"></script>
@@ -47,7 +48,7 @@
     <div class="side-bottom">
       <div class="side-activity"><span class="pulse-dot"></span><span>일일 자동 점검 설정</span></div>
       <p>GitHub Actions로 수집<br/>GitHub Pages로 공개</p>
-      <div class="side-meta">© 2026 ROBOT WATCH <span>v03</span></div>
+      <div class="side-meta">© 2026 ROBOT WATCH <span>v04</span></div>
     </div>
   </aside>
   <main class="main" id="top">
@@ -108,8 +109,8 @@
     <section id="companies-view" class="view-panel" hidden>
       <div class="section-heading"><div><span class="section-kicker">02 / SOURCE HEALTH</span><h2>기업별 수집 현황</h2><p>기업 분류 내림차순 → 기업명 내림차순. 웹페이지 접속 성공과 채용공고 자동 판독은 별개입니다.</p></div></div>
       <div class="health-legend"><span><i class="legend-dot good"></i> 성공 · 공고 판독 가능</span><span><i class="legend-dot partial"></i> 제한 · 접속은 가능, 판독 제한</span><span><i class="legend-dot failed"></i> 실패/보안오류 · 요청 실패 또는 인증서 검증 오류</span><span><i class="legend-dot idle"></i> 미설정/미실행</span></div>
-      <div class="source-board" id="sources"><div class="source-toolbar"><span><strong id="companies-total">30</strong>개 대상 기업</span><label>기업 검색 <input type="search" id="company-search" placeholder="기업명 찾기..."/></label></div><div class="table-scroll"><table class="companies-table"><thead><tr><th>기업명</th><th>분류</th><th>수집 상태</th><th>공식 목록</th><th>전문사이트 후보</th><th>최근 확인 / 사유</th><th>공식/잡코리아/사람인/인크루트</th></tr></thead><tbody id="companies-body"></tbody></table></div></div>
-      <div class="footnote">* ‘성공’은 공고 목록을 읽었다는 뜻이며 전체 채용공고를 누락 없이 확보했다는 보증은 아닙니다. ‘제한’과 ‘미설정’을 0건 채용으로 해석하지 마세요. 잡코리아·사람인·인크루트 검색 후보는 현재 모집 중임을 보장하지 않습니다. 사람인 API 연동은 별도 이용 승인이 필요합니다.</div>
+      <div class="source-board" id="sources"><div class="source-toolbar"><span><strong id="companies-total">30</strong>개 대상 기업</span><label>기업 검색 <input type="search" id="company-search" placeholder="기업명 찾기..."/></label></div><div class="table-scroll"><table class="companies-table"><thead><tr><th>기업명</th><th>분류</th><th>수집 상태</th><th>공식 목록</th><th>전문사이트 후보</th><th>최근 확인 / 사유</th><th>공식/잡코리아/사람인/인크루트/LinkedIn</th></tr></thead><tbody id="companies-body"></tbody></table></div></div>
+      <div class="footnote">* ‘성공’은 공고 목록을 읽었다는 뜻이며 전체 채용공고를 누락 없이 확보했다는 보증은 아닙니다. ‘제한’과 ‘미설정’을 0건 채용으로 해석하지 마세요. 잡코리아·사람인·인크루트·LinkedIn 검색 후보는 현재 모집 중임을 보장하지 않습니다. 사람인 API 연동은 별도 이용 승인이 필요합니다.</div>
     </section>
 
     <section id="history-view" class="view-panel" hidden>
@@ -118,7 +119,7 @@
       <div class="howto"><div class="step-circle">1</div><div><h3>매일 자동 갱신 방식</h3><p>GitHub Actions가 기업별 공식 페이지와 허용된 공개 검색 소스를 점검하고 JSON을 갱신합니다. 이후 GitHub Pages가 바뀐 데이터를 표시합니다. 별도의 PC 상시 실행은 필요하지 않습니다.</p></div></div>
     </section>
 
-    <footer class="footer"><span>ROBOT WATCH <strong>v02</strong> · 국내 로봇기업 채용 레이더</span><span>출처: 기업 공식 채용페이지 · 확인이 필요한 검색 결과는 별도 표기</span></footer>
+    <footer class="footer"><span>ROBOT WATCH <strong>v04</strong> · 국내 로봇기업 채용 레이더</span><span>출처: 기업 공식 채용페이지 · 확인이 필요한 검색 결과는 별도 표기</span></footer>
   </main>
 </div>
 </body>
