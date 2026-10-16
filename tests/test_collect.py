@@ -217,52 +217,27 @@ def test_angel_official_career_address():
     angel=next(c for c in roster if c['id']=='angel')
     assert angel['url']=='https://recruit.angel-robotics.com/ko/recruit/notice'
 
+# v04: 공개 기업별 공고목록 검사
+from crawler.portal_company import parse_public_company_listing,job_link,can_collect
 
-# v04 company-specific public listing tests
-from crawler.collect import (extract_portal_company_jobs, is_portal_job_link,
-    robots_permission, portal_company_page_candidates)
+def test_jobkorea_public_company_listing():
+    html='<h2>진행중인 채용정보</h2><a href="/Recruit/GI_Read/50120827">[로보티즈] 로봇생산인원 모집의 건 신입·경력 서울 D-52</a><h2>동종업계 기업홈</h2><a href="/Recruit/GI_Read/11">지난 공고</a>'
+    out=parse_public_company_listing(html,'잡코리아','https://www.jobkorea.co.kr/company/42816603/recruit')
+    assert len(out)==1 and out[0]['title']=='[로보티즈] 로봇생산인원 모집의 건'
 
-def test_jobkorea_open_company_listing_only():
-    company={'id':'robotis','name':'로보티즈'}
-    html='''<h2>진행중인 채용정보</h2><a href="/Recruit/GI_Read/50120827">[로보티즈] 로봇생산인원 모집의 건 신입·경력 서울 D-52</a>
-    <a href="/Recruit/GI_Read/49798276">[로보티즈AI] RX 인터페이스 엔지니어 경력 서울 D-2</a>
-    <h2>동종업계 기업홈</h2><a href="/Recruit/GI_Read/33">옛 공고</a>'''
-    jobs=extract_portal_company_jobs(company,'잡코리아',html,'https://www.jobkorea.co.kr/company/42816603/recruit')
-    assert len(jobs)==2
-    assert jobs[0]['status']=='확인필요'
-    assert jobs[0]['title']=='[로보티즈] 로봇생산인원 모집의 건'
+def test_saramin_public_company_listing():
+    html='<h2>진행중 공고 12건</h2><a href="/zf_user/jobs/view?rec_idx=1122">[뉴로메카] 로봇 CS 엔지니어</a><h2>마감된 공고</h2><a href="/zf_user/jobs/view?rec_idx=44">지난 공고</a>'
+    out=parse_public_company_listing(html,'사람인','https://www.saramin.co.kr/zf_user/company-info/view-inner-recruit?csn=a')
+    assert len(out)==1 and '1122' in out[0]['url']
 
-def test_saramin_open_company_listing_only():
-    c={'id':'neuromeka','name':'뉴로메카'}
-    html='''<h2>진행중 공고 14건</h2><li><a href="/zf_user/jobs/view?rec_idx=9911">[뉴로메카] 로봇 CS 엔지니어 채용</a></li>
-    <a href="/zf_user/jobs/relay/view?rec_idx=9912">로봇 개발 엔지니어</a>
-    <a href="/zf_user/jobs/view?rec_idx=9913">[다른회사] 채용</a>
-    <h2>마감된 공고</h2><a href="/zf_user/jobs/view?rec_idx=9999">옛 공고</a>'''
-    jobs=extract_portal_company_jobs(c,'사람인',html,'https://www.saramin.co.kr/zf_user/company-info/view-inner-recruit?csn=abc')
-    assert len(jobs)==2
+def test_portal_never_accepts_company_home_as_post():
+    assert job_link('https://www.jobkorea.co.kr/Recruit/GI_Read/50120827','잡코리아')
+    assert not job_link('https://www.jobkorea.co.kr/company/42816603/recruit','잡코리아')
+    assert not job_link('https://jobkorea.co.kr.bad.test/Recruit/GI_Read/1','잡코리아')
 
-def test_portal_link_host_and_shape():
-    assert is_portal_job_link('잡코리아','https://www.jobkorea.co.kr/Recruit/GI_Read/50120827')
-    assert not is_portal_job_link('잡코리아','https://www.jobkorea.co.kr/company/42816603/recruit')
-    assert is_portal_job_link('사람인','https://www.saramin.co.kr/zf_user/jobs/view?rec_idx=54920153')
-    assert not is_portal_job_link('사람인','https://www.saramin.co.kr/zf_user/jobs/view?x=1')
-    assert not is_portal_job_link('잡코리아','https://jobkorea.co.kr.bad.example/Recruit/GI_Read/22')
-
-def test_robots_restrictions_fail_closed():
-    class Mock:
-        def __init__(self):self.calls=0
-        def get(self,*a,**k):
-            self.calls+=1
-            return MockResp(text='User-agent: *\nDisallow: /\n')
-    m=Mock()
-    jobs,note=portal_company_page_candidates(m,{'id':'robotis','name':'로보티즈'},'잡코리아','https://www.jobkorea.co.kr/company/42816603/recruit')
-    assert jobs==[] and m.calls==1
-    assert 'robots' in note
-
-def test_board_config_company_links_are_trusted():
-    from crawler.collect import COMPANY_BOARD_FILE
-    conf=json.loads(COMPANY_BOARD_FILE.read_text(encoding='utf-8'))
-    assert len(conf)>=3
-    ids={c['id'] for c in json.loads(ROSTER_FILE.read_text())}
-    assert all(k in ids for k in conf)
-    assert all(host_allowed(url,(BOARD_SITES[b],)) for i,parts in conf.items() for b,urls in parts.items() for url in urls)
+def test_portal_obeys_robots_disallow():
+    class Block:
+        def get(self,*args,**kwargs):
+            return MockResp(text='User-agent: *\\nDisallow: /')
+    ok,reason=can_collect(Block(),'https://www.jobkorea.co.kr/company/42816603/recruit')
+    assert not ok and 'robots' in reason

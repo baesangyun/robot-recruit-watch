@@ -47,14 +47,14 @@ jobs:
           cache: pip
       - name: Install scraper dependencies
         run: python -m pip install -r requirements.txt
-      - name: Run v03 checks
+      - name: Run regression checks v04
         run: |
           python -m pip install -q pytest
           python -m pytest -q
       - name: Collect public recruitment posts
         env:
           SARAMIN_ACCESS_KEY: ${{ secrets.SARAMIN_ACCESS_KEY }}
-        run: python crawler/collect.py
+        run: python -m crawler.collect
       - name: Commit current data and history
         shell: bash
         run: |
