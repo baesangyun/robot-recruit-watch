@@ -1,18 +1,18 @@
 /**************************************************************
  * @name 로봇 채용 모니터 초기값
  * @file docs/seed.js
- * @version v02
+ * @version v03
  * @description 파일 미연결 시 기업 목록 초기값만 제공(실제 채용공고 없음)
  * @author OpenAI ChatGPT
  * @date 2026-10-16
  * @Revisions
  * - 현재 버전:
- *   1) 41개 기업 초기값
+ *   1) 41개 기업 초기값(폐업기업 제외, 투자기업 교체)
  * - 이전 버전:
  *   1) 최초 작성
  **************************************************************/
 window.ROBOT_WATCH_SEED = {
-  "version": "v02",
+  "version": "v03",
   "last_run": null,
   "timezone": "Asia/Seoul",
   "companies": [
@@ -568,16 +568,17 @@ window.ROBOT_WATCH_SEED = {
       "complete": false
     },
     {
-      "id": "floatic",
-      "name": "플로틱",
+      "id": "ndotlight",
+      "name": "엔닷라이트",
       "group": "대기업 투자기업",
-      "sector": "물류 AMR·현장 구축",
-      "url": null,
-      "adapter": "search",
+      "sector": "피지컬 AI·로봇 시뮬레이션 데이터",
+      "url": "https://ndotlight.careers.team/",
+      "adapter": "landing",
       "investors": "네이버 D2SF",
-      "investment_relation": "시드 투자(2021)",
-      "investment_source_url": "https://www.navercorp.com/media/pressReleasesDetail?seq=30533",
-      "focus": "AMR 필드 엔지니어·물류 SI",
+      "investment_relation": "2026년 8월 후속 투자",
+      "investment_source_url": "https://www.navercorp.com/media/pressReleasesDetail?seq=10034581",
+      "alternative_careers_url": "https://ndotlight.careers.team/",
+      "focus": "로보틱스 솔루션·기술 PM·사업개발",
       "status": "미실행",
       "detail": "배포 후 첫 자동 수집 예정",
       "checked_at": null,

@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 국내 로봇 채용 모니터 단위테스트
 #  * @file tests/test_collect.py
-#  * @version v08
+#  * @version v09
 #  * @description 기업 수·HTML 공고 파싱·중복/신규/마감 오판 방지 테스트
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-31
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 폐업기업 제외/운영 중 엔닷라이트 교체 검증
 #  *   1) 신규 기업과 중견/투자 자료 및 원래 30개 기업 보존 확인
 #  *   1) 채용사이트 4곳에서 필드엔지니어 및 유지보수 12개 검색어 확장 검증
 #  *   2) 역할 검색의 타 기업 혼입/다른 직무 혼입 및 기존 검색 보존 검증
@@ -389,3 +390,14 @@ def test_investment_links_on_ui_and_seed_company_count():
     html=(root/"docs/index.html").read_text(encoding="utf-8")
     assert 'id="hero-company-count">41<' in html
     assert 'id="companies-total">41<' in html
+
+def test_exclude_closed_firm_and_include_active_corporate_investee():
+    roster=json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
+    ids={c["id"] for c in roster}
+    assert len(roster)==41
+    assert "floatic" not in ids
+    assert "ndotlight" in ids
+    c=next(c for c in roster if c["id"]=="ndotlight")
+    assert c["group"]=="대기업 투자기업"
+    assert c["investors"]=="네이버 D2SF"
+    assert c["url"]=="https://ndotlight.careers.team/"
