@@ -474,9 +474,11 @@ def rss_board_candidates(company: dict, platform: str, session: requests.Session
             else:
                 normalized_title=company_identity(title)
                 if company_identity(company['name']) not in normalized_title: continue
-            if not HIRE_HINT.search(title + " " + desc) or NOT_JOB.search(title):
+            # "Maintenance" alone is also a maintenance job even without "Engineer".
+            has_role = SERVICE_ROLE_RX.search(title + " " + desc)
+            if not (HIRE_HINT.search(title + " " + desc) or (role_search and has_role)) or NOT_JOB.search(title):
                 continue
-            if role_search and not SERVICE_ROLE_RX.search(title + " " + desc):
+            if role_search and not has_role:
                 continue
             canonical=normalized_url(link)
             if canonical in seen: continue
