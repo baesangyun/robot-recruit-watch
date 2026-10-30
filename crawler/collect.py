@@ -1,12 +1,14 @@
 # /**************************************************************
 #  * @name 국내 로봇기업 채용 자동수집기
 #  * @file crawler/collect.py
-#  * @version v05
+#  * @version v06
 #  * @description 공식 채용페이지/공개 공고 피드 수집, 신규·진행·마감 판정, 기업별 검사 기록
 #  * @author OpenAI ChatGPT
-#  * @date 2026-10-16
+#  * @date 2026-10-31
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 30개 기업 × 4개 채용사이트에서 기업명 기본 검색과 유지보수 직무 검색 병행
+#  *   2) 필드엔지니어/Field Engineer 등 12개 검색어 추가, 중복/오인 방지 유지
 #  *   1) LinkedIn 색인 공고 링크 및 기업별 직접 검색 추가
 #  *   1) v03: 채용전문사이트 후보 및 승인 API 연동, 목록 가독성·정렬·수집 오류 확인
 #  *   1) 30개 기업 모니터링 및 출처별 신뢰도/수집 상태 분리
@@ -80,6 +82,25 @@ NOT_JOB = re.compile(r"채용공고$|채용정보$|채용안내$|공지사항|�
 NO_OPENINGS = re.compile(r"(현재|진행.?중인|등록된).{0,12}(채용|공고).{0,15}(없|0건)|no (open|available|current) (positions|jobs|openings)", re.I)
 DATE_RX = re.compile(r"(20\d\d)[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})")
 BOARD_SITES = {"잡코리아": "jobkorea.co.kr", "사람인": "saramin.co.kr", "인크루트": "incruit.com", "LinkedIn": "linkedin.com"}
+# Extra search terms supplement (never replace) the existing broad company search.
+# One grouped role query per company/platform limits extra search-index requests.
+SERVICE_SEARCH_TERMS = (
+    "필드엔지니어", "Field Engineer",
+    "필드서비스엔지니어", "Field Service Engineer",
+    "유지보수", "Maintenance",
+    "서비스엔지니어", "Service Engineer",
+    "기술지원", "Technical Support",
+    "A/S", "CS Engineer",
+)
+SERVICE_ROLE_RX = re.compile(
+    r"필드\s*엔지니어|필드\s*서비스\s*엔지니어|유지\s*보수|서비스\s*엔지니어|"
+    r"기술\s*지원|A\s*/\s*S|\bfield\s+(?:service\s+)?engineer\b|"
+    r"\bfield\s+service\b|\bmaintenance\b|\bservice\s+engineer\b|"
+    r"\btechnical\s+support\b|\bCS\s+engineer\b",
+    re.I,
+)
+
+
 VERIFIED_SOURCES = {"official", "platform_api"}
 COMPANY_BOARD_FILE = ROOT / 'board_company_pages.json'
 RSS_HOSTS = ("jobkorea.co.kr", "saramin.co.kr", "incruit.com", "linkedin.com", "wanted.co.kr", "career.greetinghr.com", "ninehire.site", "breezy.hr", "recruit.hd.com", "career.doosan.com", "hanwhain.com", "rainbow-robotics.com", "yujinrobot.com", "angel-robotics.com")
@@ -383,13 +404,18 @@ LINKEDIN_NAMES = {
 }
 
 
-def board_search_url(platform: str, company_name: str) -> str:
-    """Public search index query only; not a portal content scraper or authorized API."""
+def board_search_url(platform: str, company_name: str, role_search: bool = False) -> str:
+    """Indexed company or service-role jobs; no portal scraping or login bypass."""
     domain = BOARD_SITES[platform]
     if platform == "LinkedIn":
-        query = 'site:linkedin.com/jobs/view/ "' + LINKEDIN_NAMES.get(company_name,company_name) + '"'
+        company_term = LINKEDIN_NAMES.get(company_name, company_name)
+        query = 'site:linkedin.com/jobs/view/ "' + company_term + '"'
     else:
         query = 'site:' + domain + ' "' + company_name + '" 채용'
+    if role_search:
+        # Preserve all specified job terms as an OR group, not as mutually required words.
+        group = " OR ".join('"' + word + '"' for word in SERVICE_SEARCH_TERMS)
+        query += " (" + group + ")"
     return "https://www.bing.com/search?format=rss&q=" + urllib.parse.quote(query)
 
 
@@ -426,10 +452,11 @@ def is_indexed_linkedin_job(company: dict, title: str, link: str, description: s
     return (in_title or in_slug) and bool(HIRE_HINT.search(title + " " + description))
 
 
-def rss_board_candidates(company: dict, platform: str, session: requests.Session) -> tuple[list[dict],str]:
-    # Search engine index is not proof of an active advertisement. Never scrape portal HTML.
+def rss_board_candidates(company: dict, platform: str, session: requests.Session, role_search: bool = False) -> tuple[list[dict],str]:
+    # Index is not proof of an active ad. Search both company name and service roles.
+    # Never scrape restricted portal HTML or elevate search candidates to "진행".
     try:
-        url=board_search_url(platform,company['name'])
+        url=board_search_url(platform,company['name'],role_search=role_search)
         r=session.get(url,timeout=(3,8),allow_redirects=True)
         r.raise_for_status()
         if not safe_link(r.url): raise ValueError('RSS redirect URL invalid')
@@ -449,11 +476,13 @@ def rss_board_candidates(company: dict, platform: str, session: requests.Session
                 if company_identity(company['name']) not in normalized_title: continue
             if not HIRE_HINT.search(title + " " + desc) or NOT_JOB.search(title):
                 continue
+            if role_search and not SERVICE_ROLE_RX.search(title + " " + desc):
+                continue
             canonical=normalized_url(link)
             if canonical in seen: continue
             seen.add(canonical)
             j=base_job(company,title,link,detail=desc,reliability='search_unverified')
-            j['source']=platform+' 검색후보'
+            j['source']=platform+(' 유지보수 검색후보' if role_search else ' 검색후보')
             j['status']='확인필요'
             out.append(j)
         return out[:12],('검색 후보 '+str(len(out))+'건' if out else '색인 결과 없음/검증 불가')
@@ -618,8 +647,11 @@ def run(*, with_search: bool = True, session: requests.Session | None = None) ->
                     job['status']='확인필요'
                     found.append(job)
             matches,note=rss_board_candidates(company,board,local)
+            service_matches,service_note=rss_board_candidates(company,board,local,role_search=True)
             found.extend(matches)
-            notes[board]=(' / '.join(observations)+'; ' if observations else '')+note
+            found.extend(service_matches)
+            notes[board]=(' / '.join(observations)+'; ' if observations else '')+(
+                '기업명 검색: '+note+' / 유지보수 검색: '+service_note)
         if saramin_key:
             verified,note=saramin_api_candidates(local,company,saramin_key)
             found.extend(verified)
@@ -657,9 +689,9 @@ def run(*, with_search: bool = True, session: requests.Session | None = None) ->
                 discovered.extend(found)
                 statuses[company_id]['candidate_count']=sum(j['verification']=='search_unverified' for j in found)
                 statuses[company_id]['portal_results']=notes
-                statuses[company_id]['search_status']='전문 채용사이트 4곳 검색 시도' if notes else '검색 미실행'
+                statuses[company_id]['search_status']='전문 채용사이트 4곳: 기업명+유지보수 직무 검색' if notes else '검색 미실행'
     jobs = reconcile(prev, deduplicate_sources(discovered), statuses, now)
-    result = {"version": "v05", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
+    result = {"version": "v06", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
               "history": ([{"time":now, "jobs_official":sum(1 for j in jobs if j.get("verification")=="official" and j.get("status")=="진행"),
                            "success":sum(s["status"]=="성공" for s in statuses.values()),
                            "limited":sum(s["status"] in ("제한","미설정") for s in statuses.values()),

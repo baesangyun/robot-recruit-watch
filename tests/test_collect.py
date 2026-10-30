@@ -1,12 +1,14 @@
 # /**************************************************************
 #  * @name 국내 로봇 채용 모니터 단위테스트
 #  * @file tests/test_collect.py
-#  * @version v06
+#  * @version v07
 #  * @description 기업 수·HTML 공고 파싱·중복/신규/마감 오판 방지 테스트
 #  * @author OpenAI ChatGPT
-#  * @date 2026-10-16
+#  * @date 2026-10-31
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 채용사이트 4곳에서 필드엔지니어 및 유지보수 12개 검색어 확장 검증
+#  *   2) 역할 검색의 타 기업 혼입/다른 직무 혼입 및 기존 검색 보존 검증
 #  *   1) 수집 예약 KST 10시·15시와 인증된 Actions 수동 실행 링크 회귀 검사
 #  *   1) LinkedIn 검색 공고 링크·기업명·모집 여부 오판 방지
 #  *   1) v03: 채용전문사이트 후보 및 승인 API 연동, 목록 가독성·정렬·수집 오류 확인
@@ -288,3 +290,75 @@ def test_twice_daily_kst_schedule_and_manual_dispatch():
     assert 'github_pat_' not in html and 'ghp_' not in html
 
 
+
+
+# v06 maintenance / Field Engineer targeted index search
+from crawler.collect import SERVICE_SEARCH_TERMS, SERVICE_ROLE_RX
+
+
+def test_maintenance_search_term_coverage_all_portals():
+    terms = (
+        "필드엔지니어", "Field Engineer", "필드서비스엔지니어",
+        "Field Service Engineer", "유지보수", "Maintenance",
+        "서비스엔지니어", "Service Engineer", "기술지원",
+        "Technical Support", "A/S", "CS Engineer",
+    )
+    assert SERVICE_SEARCH_TERMS == terms
+    for platform in BOARD_SITES:
+        ordinary = unquote(board_search_url(platform, "두산로보틱스"))
+        extended = unquote(board_search_url(platform, "두산로보틱스", role_search=True))
+        assert ordinary.startswith("https://www.bing.com/search?")
+        assert ordinary != extended
+        assert extended.startswith(ordinary.split("&q=")[0])
+        assert all('"' + term + '"' in extended for term in terms)
+        assert " OR " in extended
+        assert "두산로보틱스" in extended or "Doosan Robotics" in extended
+        assert all(term not in ordinary for term in terms)
+
+
+def test_maintenance_role_matches_english_and_korean():
+    for text in (
+        "필드엔지니어 채용", "Field Engineer", "필드서비스엔지니어",
+        "Field Service Engineer", "유지보수", "Maintenance",
+        "서비스엔지니어", "Service Engineer", "기술지원",
+        "Technical Support", "A/S", "CS Engineer",
+    ):
+        assert SERVICE_ROLE_RX.search(text), text
+    assert SERVICE_ROLE_RX.search("Field   Service Engineer")
+    assert not SERVICE_ROLE_RX.search("인사총무 담당")
+
+
+def test_maintenance_search_results_validate_company_and_role():
+    company={"id":"doosan","name":"두산로보틱스","url":"https://career.doosan.com"}
+    xml="""<rss><channel>
+      <item><title>두산로보틱스 필드엔지니어 채용</title>
+      <link>https://www.jobkorea.co.kr/Recruit/GI_Read/90001</link></item>
+      <item><title>두산로보틱스 인사총무 담당 채용</title>
+      <link>https://www.jobkorea.co.kr/Recruit/GI_Read/90002</link></item>
+      <item><title>다른로보틱스 Field Engineer 채용</title>
+      <link>https://www.jobkorea.co.kr/Recruit/GI_Read/90003</link></item>
+      <item><title>두산로보틱스 Field Engineer 채용</title>
+      <link>https://jobkorea.co.kr.evil.example/Recruit/GI_Read/90004</link></item>
+      </channel></rss>"""
+    matches,note=rss_board_candidates(company,"잡코리아",MockSession(MockResp(xml)),role_search=True)
+    assert len(matches)==1
+    assert matches[0]["title"]=="두산로보틱스 필드엔지니어 채용"
+    assert matches[0]["status"]=="확인필요"
+    assert matches[0]["verification"]=="search_unverified"
+    assert matches[0]["source"]=="잡코리아 유지보수 검색후보"
+
+
+def test_maintenance_search_reuses_existing_dedup_logic():
+    company={"id":"robotis","name":"로보티즈"}
+    url="https://www.jobkorea.co.kr/Recruit/GI_Read/90005"
+    a=base_job(company,"로보티즈 Field Engineer",url,reliability="search_unverified")
+    b=base_job(company,"로보티즈 Field Engineer",url,reliability="search_unverified")
+    assert len(deduplicate_sources([a,b]))==1
+
+
+def test_maintenance_keyword_search_invoked_for_each_board():
+    from pathlib import Path
+    src=(Path(__file__).resolve().parents[1]/"crawler/collect.py").read_text(encoding="utf-8")
+    assert "for board in BOARD_SITES:" in src
+    assert "rss_board_candidates(company,board,local,role_search=True)" in src
+    assert "found.extend(service_matches)" in src
