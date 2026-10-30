@@ -1,12 +1,13 @@
 /**************************************************************
  * @name 국내 로봇기업 채용 대시보드
  * @file docs/app.js
- * @version v04
+ * @version v05
  * @description 채용/수집현황/이력 단일페이지, 신규/마감/직무/지역/기업 검색, CSV
  * @author OpenAI ChatGPT
  * @date 2026-10-16
  * @Revisions
  * - 현재 버전:
+ *   1) 41개 기업과 대기업 투자·중견기업 입증 링크 표시
  *   1) LinkedIn 기업별 검색 링크 및 색인 후보 안내
  *   1) v03: 채용전문사이트 후보 및 승인 API 연동, 목록 가독성·정렬·수집 오류 확인
  *   1) 동적 JSON 로드, 공식공고와 확인필요 검색결과 엄격 구분
@@ -166,8 +167,13 @@
     list.sort((a,b)=>(b.group||'').localeCompare(a.group||'','ko')||b.name.localeCompare(a.name,'ko'));
     const rows=list.map(c=>{
       const tr=el('tr');
-      tr.append(td(el('div',{class:'source-name',text:c.name})));
-      tr.append(td(el('span',{text:c.group||'—'})));
+      const name=el('div',{class:'source-name',text:c.name});
+      if(c.investors)name.append(el('div',{class:'source-sub',text:'투자: '+c.investors}));
+      if(c.focus)name.append(el('div',{class:'source-hint',text:'관심 분야: '+c.focus}));
+      tr.append(td(name));
+      const category=el('div',{},[el('span',{text:c.group||'—'})]);
+      if(c.group==='중견기업'&&c.listing_status==='상장')category.append(el('div',{class:'source-hint',text:'상장 중견기업'}));
+      tr.append(td(category));
       tr.append(td(chip(c.status||'미실행',statuses[c.status]||'idle')));
       tr.append(td(el('span',{text:c.status==='성공'?String(c.official_count??0)+'건': '—'})));
       const boardData=c.portal_results||{};
@@ -182,6 +188,8 @@
       const u=safelyOpen(c.url);
       if(u)links.append(el('a',{class:'source-link',href:u,target:'_blank',rel:'noopener noreferrer',text:'공식 ↗'}));
       if(c.alternative_careers_url){const alt=safelyOpen(c.alternative_careers_url);if(alt)links.append(el('a',{class:'source-link',href:alt,target:'_blank',rel:'noopener noreferrer',text:'대체 채용목록 ↗'}));}
+      if(c.investors&&c.investment_source_url){const u=safelyOpen(c.investment_source_url);if(u)links.append(el('a',{class:'board-link',href:u,title:c.investment_relation,target:'_blank',rel:'noopener noreferrer',text:'투자 근거 ↗'}));}
+      if(c.size_evidence_url){const u=safelyOpen(c.size_evidence_url);if(u)links.append(el('a',{class:'board-link',href:u,target:'_blank',rel:'noopener noreferrer',text:'중견기업 근거 ↗'}));}
       for(const site of ['잡코리아','사람인','인크루트','LinkedIn']){
         const target=safelyOpen((c.portal_links||{})[site]);
         if(target)links.append(el('a',{class:'board-link',href:target,target:'_blank',rel:'noopener noreferrer',text:site+' ↗'}));

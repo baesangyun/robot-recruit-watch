@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 국내 로봇 채용 모니터 단위테스트
 #  * @file tests/test_collect.py
-#  * @version v07
+#  * @version v08
 #  * @description 기업 수·HTML 공고 파싱·중복/신규/마감 오판 방지 테스트
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-31
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 신규 기업과 중견/투자 자료 및 원래 30개 기업 보존 확인
 #  *   1) 채용사이트 4곳에서 필드엔지니어 및 유지보수 12개 검색어 확장 검증
 #  *   2) 역할 검색의 타 기업 혼입/다른 직무 혼입 및 기존 검색 보존 검증
 #  *   1) 수집 예약 KST 10시·15시와 인증된 Actions 수동 실행 링크 회귀 검사
@@ -28,8 +29,8 @@ BEAR = {"id":"bear","name":"베어로보틱스","adapter":"breezy","url":"https:
 
 def test_company_roster():
     roster = json.loads(ROSTER_FILE.read_text())
-    assert len(roster) == 30
-    assert len({c['id'] for c in roster}) == 30
+    assert len(roster) == 41
+    assert len({c['id'] for c in roster}) == 41
     assert all(c['name'] and c['adapter'] and c['group'] for c in roster)
 
 
@@ -362,3 +363,29 @@ def test_maintenance_keyword_search_invoked_for_each_board():
     assert "for board in BOARD_SITES:" in src
     assert "rss_board_candidates(company,board,local,role_search=True)" in src
     assert "found.extend(service_matches)" in src
+
+def test_expansion_mid_and_corporate_investment_provenance():
+    roster=json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
+    assert set(["hanwha","doosan","hd","samsung","lg","hyundai","rainbow","robotis","neuromeka","bear","angel","kohyoung","yujin","yuil","robostar","clobot","twinny","trobotics","everybot","roborobo","sbb","spg","higen","vd","neubility","robocare","curexo","raon","future","robot3"]).issubset({c["id"] for c in roster})
+    assert len(roster)==len({c["id"] for c in roster})==len({c["name"] for c in roster})==41
+    assert sum(c["group"]=="중견기업" for c in roster)==3
+    assert sum(c["group"]=="대기업 투자기업" for c in roster)==5
+    for c in roster:
+        if c.get("investors"):
+            assert c["investment_source_url"].startswith("https://")
+        if c["group"]=="중견기업":
+            assert c["size_evidence_url"].startswith("https://")
+
+
+def test_investment_links_on_ui_and_seed_company_count():
+    from pathlib import Path
+    root=Path(__file__).resolve().parents[1]
+    seed=(root/"docs/seed.js").read_text(encoding="utf-8").split("window.ROBOT_WATCH_SEED = ",1)[1].strip().rstrip(";")
+    data=json.loads(seed)
+    assert len(data["companies"])==41 and data["jobs"]==[]
+    assert all(c["status"]=="미실행" for c in data["companies"])
+    js=(root/"docs/app.js").read_text(encoding="utf-8")
+    assert "투자 근거 ↗" in js and "중견기업 근거 ↗" in js
+    html=(root/"docs/index.html").read_text(encoding="utf-8")
+    assert 'id="hero-company-count">41<' in html
+    assert 'id="companies-total">41<' in html

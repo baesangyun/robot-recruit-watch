@@ -1,17 +1,18 @@
 # /**************************************************************
 #  * @name 국내 로봇기업 채용 자동수집기
 #  * @file crawler/collect.py
-#  * @version v06
+#  * @version v07
 #  * @description 공식 채용페이지/공개 공고 피드 수집, 신규·진행·마감 판정, 기업별 검사 기록
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-31
 #  * @Revisions
 #  * - 현재 버전:
-#  *   1) 30개 기업 × 4개 채용사이트에서 기업명 기본 검색과 유지보수 직무 검색 병행
+#  *   1) 41개 로봇기업 확장: 중견·대기업 투자 대상 및 검증 출처 전달
+#  *   1) 등록 기업 × 4개 채용사이트에서 기업명 기본 검색과 유지보수 직무 검색 병행
 #  *   2) 필드엔지니어/Field Engineer 등 12개 검색어 추가, 중복/오인 방지 유지
 #  *   1) LinkedIn 색인 공고 링크 및 기업별 직접 검색 추가
 #  *   1) v03: 채용전문사이트 후보 및 승인 API 연동, 목록 가독성·정렬·수집 오류 확인
-#  *   1) 30개 기업 모니터링 및 출처별 신뢰도/수집 상태 분리
+#  *   1) 등록 기업 모니터링 및 출처별 신뢰도/수집 상태 분리
 #  *   2) 최초 스냅샷은 신규로 오판하지 않고 검증된 소스에만 종료 처리
 #  * - 이전 버전:
 #  *   1) 최초 작성
@@ -401,6 +402,17 @@ LINKEDIN_NAMES = {
     "큐렉소": "Curexo", "라온테크": "Raontech",
     "휴림로봇": "Hyulim Robot",
     "로보쓰리에이아이앤로보틱스": "Robo3 AI & Robotics",
+    "현대무벡스": "Hyundai Movex",
+    "에스에프에이": "SFA",
+    "제우스": "ZEUS",
+    "에이딘로보틱스": "AIDIN Robotics",
+    "플로틱": "Floatic",
+    "로보콘": "ROBOCON",
+    "비욘드허니컴": "Beyond Honeycomb",
+    "로보아르테": "RoboArete",
+    "씨메스": "CMES",
+    "엘에스티라유텍": "LS THIRA-UTECH",
+    "티엑스알로보틱스": "TXR Robotics",
 }
 
 
@@ -670,6 +682,12 @@ def run(*, with_search: bool = True, session: requests.Session | None = None) ->
             'id':company['id'],'name':company['name'],'group':company['group'],
             'sector':company['sector'],'url':company.get('url'),
             'adapter':company['adapter'],'status':status,'detail':detail,
+            'investors':company.get('investors',''),
+            'investment_relation':company.get('investment_relation',''),
+            'investment_source_url':company.get('investment_source_url'),
+            'size_evidence_url':company.get('size_evidence_url'),
+            'listing_status':company.get('listing_status',''),
+            'focus':company.get('focus',''),
             'checked_at':now,'official_count':len(official),'candidate_count':0,
             'search_status':'검색 미실행','complete':complete,
             'portal_links':portal_links(company['name']),'portal_results':{},
@@ -693,7 +711,7 @@ def run(*, with_search: bool = True, session: requests.Session | None = None) ->
                 statuses[company_id]['portal_results']=notes
                 statuses[company_id]['search_status']='전문 채용사이트 4곳: 기업명+유지보수 직무 검색' if notes else '검색 미실행'
     jobs = reconcile(prev, deduplicate_sources(discovered), statuses, now)
-    result = {"version": "v06", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
+    result = {"version": "v07", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
               "history": ([{"time":now, "jobs_official":sum(1 for j in jobs if j.get("verification")=="official" and j.get("status")=="진행"),
                            "success":sum(s["status"]=="성공" for s in statuses.values()),
                            "limited":sum(s["status"] in ("제한","미설정") for s in statuses.values()),
