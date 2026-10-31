@@ -1,12 +1,13 @@
 /**************************************************************
  * @name 국내 로봇기업 채용 대시보드
  * @file docs/app.js
- * @version v05
+ * @version v06
  * @description 채용/수집현황/이력 단일페이지, 신규/마감/직무/지역/기업 검색, CSV
  * @author OpenAI ChatGPT
  * @date 2026-10-16
  * @Revisions
  * - 현재 버전:
+ *   1) 종료 공고는 기본 화면에서 숨기고 마감 탭에서만 확인(과거 이력은 유지)
  *   1) 41개 기업과 대기업 투자·중견기업 입증 링크 표시
  *   1) LinkedIn 기업별 검색 링크 및 색인 후보 안내
  *   1) v03: 채용전문사이트 후보 및 승인 API 연동, 목록 가독성·정렬·수집 오류 확인
@@ -84,14 +85,15 @@
     const jobs=state.data.jobs||[];
     const official=jobs.filter(j=>['official','platform_api'].includes(j.verification));
     const active=official.filter(j=>jobStatus(j)==='진행');
-    const closed=official.filter(j=>jobStatus(j)==='마감');
+    const closed=jobs.filter(j=>jobStatus(j)==='마감');
     const fresh=active.filter(j=>j.new);
     const companies=state.data.companies||[];
     const success=companies.filter(c=>c.status==='성공').length;
     setText('hero-company-count',companies.length); setText('nav-company-count',companies.length); setText('last-sync',state.data.last_run?formatDate(state.data.last_run,true):'아직 실행 전');
     setText('stat-new',fresh.length); setText('stat-active',active.length); setText('stat-closed',closed.length);
     setText('stat-success',success); setText('stat-success-total','/ '+companies.length);
-    setText('nav-job-count',jobs.length); setText('num-all',jobs.length); setText('num-new',fresh.length);
+    setText('nav-job-count',jobs.filter(j=>jobStatus(j)!=='마감').length);
+    setText('num-all',jobs.filter(j=>jobStatus(j)!=='마감').length); setText('num-new',fresh.length);
     setText('num-active',active.length); setText('num-closed',closed.length);
     setText('num-pending',jobs.filter(j=>jobStatus(j)==='확인필요').length);
     setText('companies-total',companies.length);
@@ -107,6 +109,7 @@
     const term=state.term.toLocaleLowerCase('ko');
     let jobs=(state.data.jobs||[]).filter(j=>{
       const status=jobStatus(j);
+      if(state.status==='all'&&status==='마감') return false; // Closed jobs remain only in the archive tab.
       if(state.status==='new'&&!j.new) return false;
       if(state.status!=='new'&&state.status!=='all'&&status!==state.status) return false;
       if(state.scope && scopeOf(j)!==state.scope) return false;

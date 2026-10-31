@@ -3151,15 +3151,17 @@
       "work_scope": "국내",
       "role": "유지보수·CS",
       "career": "신입·경력",
-      "deadline": null,
+      "deadline": "2026-10-30",
       "verification": "search_unverified",
       "source": "잡코리아 기업별 공개 채용목록",
       "other_sources": [],
       "first_seen": "2026-10-16T20:07:44+09:00",
       "last_seen": "2026-10-30T21:11:58+09:00",
-      "status": "확인필요",
+      "status": "마감",
       "new": false,
-      "missing_streak": 0
+      "missing_streak": 0,
+      "status_evidence": "사용자 제공 잡코리아 공고 화면: 마감 안내 및 접수기간(2026.08.31~2026.10.30)",
+      "status_checked_at": "2026-10-31T08:26:00+09:00"
     },
     {
       "id": "4e01bf38e226d12f3454",

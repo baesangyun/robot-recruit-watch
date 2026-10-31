@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 국내 로봇 채용 모니터 단위테스트
 #  * @file tests/test_collect.py
-#  * @version v09
+#  * @version v10
 #  * @description 기업 수·HTML 공고 파싱·중복/신규/마감 오판 방지 테스트
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-31
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 잡코리아 상세 마감 표시/종료일 파싱 및 기본 목록 숨김 검증
 #  *   1) 폐업기업 제외/운영 중 엔닷라이트 교체 검증
 #  *   1) 신규 기업과 중견/투자 자료 및 원래 30개 기업 보존 확인
 #  *   1) 채용사이트 4곳에서 필드엔지니어 및 유지보수 12개 검색어 확장 검증
@@ -401,3 +402,74 @@ def test_exclude_closed_firm_and_include_active_corporate_investee():
     assert c["group"]=="대기업 투자기업"
     assert c["investors"]=="네이버 D2SF"
     assert c["url"]=="https://ndotlight.careers.team/"
+
+
+# v10 job deadline/closure verification
+from crawler.job_status import (
+    canonical_jobkorea_url, parse_jobkorea_details, update_jobkorea_statuses
+)
+
+
+def test_jobkorea_detail_parse_explicit_closed_and_recruiting_dates():
+    html = """<html><body><h1>[로보티즈] 세미휴머노이드 필드엔지니어 모집의 건</h1>
+    <div>마감</div><h2>지원정보</h2><p>마감되었습니다.</p>
+    <div>기간 2026.08.31(월) ~ 2026.10.30(금)</div></body></html>"""
+    result = parse_jobkorea_details(html)
+    assert result == {"deadline":"2026-10-30","explicitly_closed":True}
+
+
+def test_jobkorea_detail_parse_active_no_false_closed():
+    html = """<h1>로봇 Field Engineer 채용</h1><p>마감일은 기업의 사정에 따라 조기 마감 또는 변경될 수 있습니다.</p>
+    <p>접수기간/방법 기간 2026.10.31(토) ~ 2026.11.20(금)</p><button>지원하기</button>"""
+    x = parse_jobkorea_details(html)
+    assert x["deadline"] == "2026-11-20"
+    assert not x["explicitly_closed"]
+
+
+def test_jobkorea_detail_parse_pc_deadline_without_period():
+    html = "<h1>엔지니어 채용</h1><section>접수기간 · 방법</section><div>마감일 2026.10.30(금)</div>"
+    result = parse_jobkorea_details(html)
+    assert result["deadline"] == "2026-10-30"
+
+
+def test_jobkorea_url_validation_and_app_redirect_not_scraped():
+    assert canonical_jobkorea_url(
+      "https://www.jobkorea.co.kr/Recruit/GI_Read/49888960?Oem_Code=C1&sc=225"
+    ) == "https://www.jobkorea.co.kr/Recruit/GI_Read/49888960"
+    assert canonical_jobkorea_url("https://m.jobkorea.co.kr/Recruit/GI_Read/49888960")
+    assert canonical_jobkorea_url("https://m.jobkorea.co.kr/info/app_down.asp?Gno=49888960") is None
+    assert canonical_jobkorea_url("https://evil.jobkorea.co.kr.evil.net/Recruit/GI_Read/49888960") is None
+
+
+def test_close_overdue_job_from_previous_evidence_without_network():
+    class NoRequests:
+        def get(self,*args,**kwargs):
+            raise AssertionError("Remote request unnecessary for an already ended posting.")
+    j=base_job(ROBOTIS,"[로보티즈] 세미휴머노이드 필드엔지니어 모집의 건",
+      "https://www.jobkorea.co.kr/Recruit/GI_Read/49888960",
+      reliability="search_unverified")
+    j["deadline"]="2026-10-30"
+    j["status"]="확인필요"
+    stats=update_jobkorea_statuses(NoRequests(), [j], now=datetime.fromisoformat("2026-10-31T08:40:00+09:00"))
+    assert j["status"]=="마감" and j["deadline"]=="2026-10-30" and stats["closed"]==1
+
+
+def test_reconcile_retains_verified_deadline_after_rescan():
+    company={"id":"robotis","name":"로보티즈"}
+    url="https://www.jobkorea.co.kr/Recruit/GI_Read/49888960"
+    old=base_job(company,"로보티즈 Field Engineer",url,reliability="search_unverified")
+    old.update({"deadline":"2026-10-30","status":"마감","status_evidence":"사용자 제공 공고 마감 화면"})
+    fresh=base_job(company,"로보티즈 Field Engineer",url,reliability="search_unverified")
+    after=reconcile({"last_run":"2026-10-30T10:00:00+09:00","jobs":[old]},
+         [fresh],{"robotis":{"complete":False}},"2026-10-31T10:00:00+09:00")
+    assert after[0]["status"]=="마감" and after[0]["deadline"]=="2026-10-30"
+
+
+def test_closed_posts_hidden_by_default_but_kept_in_archive():
+    from pathlib import Path
+    root=Path(__file__).resolve().parents[1]
+    app=(root/"docs/app.js").read_text(encoding="utf-8")
+    html=(root/"docs/index.html").read_text(encoding="utf-8")
+    assert "state.status==='all'&&status==='마감'" in app
+    assert 'data-status="마감"' in html
+    assert '모집·확인 필요' in html
