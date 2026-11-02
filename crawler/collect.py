@@ -1,12 +1,14 @@
 # /**************************************************************
 #  * @name 국내 로봇기업 채용 자동수집기
 #  * @file crawler/collect.py
-#  * @version v12
+#  * @version v13
 #  * @description 공식 채용페이지/공개 공고 피드 수집, 신규·진행·마감 판정, 기업별 검사 기록
 #  * @author OpenAI ChatGPT
-#  * @date 2026-10-31
+#  * @date 2026-11-03
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 큐렉소 공식 채용 목록 UUID 전용 판독·엔젤로보틱스 공식 페이지 탐색 및 2페이지 수집
+#  *   2) 공식 공고 총건수 대비 부분 수집 감지·두산 실제 채용 목록 URL 연결
 #  *   1) 에스피지·큐렉소 공식 채용 URL 수정, 유진로봇 등 8개 기업별 채용목록 보강
 #  *   1) 7개 채용검색 사이트(리멤버·원티드·잡플래닛 추가) 공개 검색 색인 지원
 #  *   2) 공식 채용 URL·기업 홈페이지·외부 채용목록 구분, 접근 문제를 화면에 전달
@@ -56,6 +58,7 @@ FIND_PATTERNS = {
     "greeting": ["a[href*='/ko/o/']", "a[href*='/o/']", "a[href*='/ko/job/']", "a[href*='/job/']", "a[href*='/jobs/']"],
     "rainbow": ["a[href*='uid='][href*='mod=document']"],
     "angel": ["a[href*='/recruit/notice/']"],
+    "curexo": ["a[href]"],
     "yujin": ["a[href*='/company/recruit/']"],
 }
 ROLE_RULES = [
@@ -292,8 +295,14 @@ def parse_listing(company: dict, html: str, base_url: str) -> tuple[list[dict], 
             href = urllib.parse.urljoin(base_url, a.get("href", ""))
             if not safe_link(href) or (urllib.parse.urlparse(href).hostname or "").lower() != base_hostname:
                 continue
-            if adapter == "angel" and not re.search(r"/notice/\d+(?:\?|$)",href):
+            if adapter == "angel" and not re.search(r"/notice/\d+(?:/|\?|$)",href):
                 continue
+            if adapter == "curexo":
+                # Oopy/Notion has many UUID pages (about/FAQ); require job-list
+                # context and a job-like title rather than treating every UUID as a vacancy.
+                if not re.fullmatch(r"/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/?",
+                                    urllib.parse.urlsplit(href).path, re.I):
+                    continue
             if adapter == "yujin" and any(x in href for x in ("/author/", "/page/", "/category/")):
                 continue
             if adapter == "yujin" and urllib.parse.urlsplit(href).path.rstrip("/") == "/company/recruit":
@@ -304,14 +313,23 @@ def parse_listing(company: dict, html: str, base_url: str) -> tuple[list[dict], 
                 candidates = [x for x in fragments if len(x) > 8 and not re.search(r"채용 시 마감|플래닛|조회수|^.+Team$", x, re.I)]
                 if candidates:
                     title = max(candidates, key=len)[:115]
-            if (not HIRE_HINT.search(title) and not (adapter in ("angel","greeting") and len(title)>8)) or NOT_JOB.search(title):
+            if (not HIRE_HINT.search(title) and not (adapter in ("angel","greeting") and len(title)>8)
+                and not (adapter=="curexo" and re.search(r"의료(기기|로봇)|개발|마케팅|영업|기술|연구", title))) or NOT_JOB.search(title):
                 continue
+            if adapter == "curexo":
+                # Reject navigation cards such as "큐렉소 소개", FAQ and other pages.
+                if not re.search(r"의료(기기|로봇)|개발|마케팅|영업|기술|연구|설계|엔지니어", title):
+                    continue
             parent = a.find_parent(["article","li","section"]) or a.parent
             context = tidy(parent.get_text(" ",strip=True))[:400] if parent else title
             if len(title)>115 and context:
                 # Avoid cards that collapse all metadata into a title.
                 title = title[:115]
             job = base_job(company, title, href, detail=context)
+            # Public career list explicitly labels these as actively recruiting.
+            if adapter == "curexo" and "채용 중" not in soup.get_text(" ",strip=True):
+                job["verification"]="official_unverified"
+                job["status"]="확인필요"
             # Archive-style boards can retain old posts for years; do not call them active.
             if adapter == "yujin" or (adapter == "rainbow" and not re.search(r"채용중|상시채용", context)):
                 job["verification"] = "official_unverified"
@@ -359,7 +377,34 @@ def scrape_official(session: requests.Session, company: dict) -> tuple[list[dict
         response = fetch(session, url)
         if adapter in FIND_PATTERNS:
             jobs, definitive_empty = parse_listing(company, response.text, response.url)
+            if adapter == "angel" and jobs:
+                # Angel Robotics publicly paginates its *open positions* (10/page).
+                # Do not report "complete" if a page failed or total > collected.
+                total = re.search(r"총\s*(\d{1,3})\s*건의\s*공고가\s*진행중", BeautifulSoup(response.text,"html.parser").get_text(" ",strip=True))
+                expected = int(total.group(1)) if total else 0
+                page_urls = set()
+                for a in BeautifulSoup(response.text,"html.parser").select("a[href]"):
+                    candidate = urllib.parse.urljoin(response.url,a.get("href",""))
+                    p = urllib.parse.urlsplit(candidate)
+                    if (p.scheme=="https" and p.hostname==urllib.parse.urlsplit(response.url).hostname
+                        and p.path.rstrip("/")=="/ko/recruit/notice" and
+                        re.search(r"(?:^|&)page=\d+(?:&|$)",p.query)):
+                        page_urls.add(candidate)
+                if expected and len(jobs)<expected:
+                    if not page_urls:  # Public site exposes the second page as ?page=2.
+                        page_urls.add(urllib.parse.urljoin(response.url,"/ko/recruit/notice?page=2"))
+                    for page in sorted(page_urls)[:4]:
+                        if len(jobs)>=expected: break
+                        try:
+                            more = fetch(session,page)
+                            new_jobs,_=parse_listing(company,more.text,more.url)
+                            jobs=list({j["id"]:j for j in jobs+new_jobs}.values())
+                        except requests.RequestException as exc:
+                            LOG.info("Angel Robotics pagination partial: %s",type(exc).__name__)
+                if expected and len(jobs)<expected:
+                    return jobs,"제한",f"공식 공고 {len(jobs)}/{expected}건 부분 수집 · 다른 페이지 확인 필요",False
             if jobs or definitive_empty:
+                # An explicit "no openings" banner is the only safe zero count.
                 return jobs, "성공", "공식 목록 공고 판독" if jobs else "공식 목록 공고 0건 명시", True
             return [], "제한", "사이트 접속 성공 · 공고 자동 판독 불가", False
         # These URLs are valid sources but are not assumed to offer a machine-readable listing.
@@ -801,7 +846,7 @@ def run(*, with_search: bool = True, session: requests.Session | None = None) ->
     LOG.info("JobKorea status checks: %s", detail_check)
     # Keep archived closed posts for the '마감' tab; the default page hides them.
     jobs.sort(key=lambda j: (j.get("status") == "마감", not j.get("new", False), j.get("first_seen") or ""))
-    result = {"version": "v11", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
+    result = {"version": "v12", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
               "history": ([{"time":now, "jobs_official":sum(1 for j in jobs if j.get("verification")=="official" and j.get("status")=="진행"),
                            "success":sum(s["status"]=="성공" for s in statuses.values()),
                            "limited":sum(s["status"] in ("제한","미설정") for s in statuses.values()),

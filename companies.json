@@ -12,9 +12,10 @@
     "name": "두산로보틱스",
     "group": "상장기업",
     "sector": "협동로봇",
-    "url": "https://career.doosan.com/",
+    "url": "https://career.doosan.com/dsp/sa/RecList.jsp",
     "adapter": "portal",
-    "alternative_careers_url": "https://www.jobkorea.co.kr/company/16151359/recruit"
+    "alternative_careers_url": "https://www.jobkorea.co.kr/company/16151359/recruit",
+    "official_url_note": "커리어두산 실제 채용공고 목록. 기업별 상세 연결 규칙 추가 전까지 전체 판독으로 주장하지 않음."
   },
   {
     "id": "hd",
@@ -98,11 +99,12 @@
     "name": "엔젤로보틱스",
     "group": "상장기업",
     "sector": "웨어러블",
-    "url": "https://recruit.angel-robotics.com/ko/recruit/notice",
+    "url": "https://www.angel-robotics.com/ko/recruit/notice",
     "adapter": "angel",
     "investors": "LG전자",
     "investment_relation": "투자 이력",
-    "investment_source_url": "https://www.fnnews.com/news/202501301805554400"
+    "investment_source_url": "https://www.fnnews.com/news/202501301805554400",
+    "official_url_note": "공식 채용 중 목록(페이지 분할 포함) 직접 점검. 총 공고 수 대비 누락 시 일부 수집 표시."
   },
   {
     "id": "kohyoung",
@@ -246,10 +248,10 @@
     "name": "큐렉소",
     "group": "상장기업",
     "sector": "의료로봇",
-    "url": "https://career.curexo.com/",
-    "adapter": "landing",
+    "url": "https://career.curexo.com/a049e805-13d8-4ccc-97d2-a3fab412be13",
+    "adapter": "curexo",
     "alternative_careers_url": "https://www.jobkorea.co.kr/company/42247812/Recruit",
-    "official_url_note": "큐렉소 공식 Career 페이지 확인. 잡코리아 기업별 공고도 확인됨."
+    "official_url_note": "큐렉소 Career의 '채용 중' 공고 목록 직접 판독. 일반 기업홈페이지와 분리."
   },
   {
     "id": "raon",

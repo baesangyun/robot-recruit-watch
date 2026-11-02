@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 국내 로봇 채용 모니터 단위테스트
 #  * @file tests/test_collect.py
-#  * @version v14
+#  * @version v15
 #  * @description 기업 수·HTML 공고 파싱·중복/신규/마감 오판 방지 테스트
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-31
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 큐렉소 UUID 공고 판독/허위공고 방지, 엔젤 채용목록 페이지네이션·부분수집 체크
 #  *   1) 기존 URL 정정 및 큐렉소·로보케어·삼익THK 등 모집 목록 경로 검증
 #  *   1) 채용사이트 7곳 및 기업별 URL 유형·유진로봇 대체 채용 링크 검증
 #  *   1) 신규 확인 필요 후보 발견 표시, 폐업/타사명 오판 방지 검사
@@ -25,6 +26,7 @@
 #  *   1) 최초 작성
 #  **************************************************************/
 import json
+import requests
 from datetime import datetime,timedelta
 
 from crawler.collect import (ROSTER_FILE, parse_breezy, parse_listing, reconcile, classify_region, classify_role, job_key, parse_deadline, host_allowed, base_job, classify_work_scope)
@@ -226,7 +228,7 @@ def test_frontend_100_per_page_and_group_desc_sort():
 def test_angel_official_career_address():
     roster=json.loads(ROSTER_FILE.read_text())
     angel=next(c for c in roster if c['id']=='angel')
-    assert angel['url']=='https://recruit.angel-robotics.com/ko/recruit/notice'
+    assert angel['url']=='https://www.angel-robotics.com/ko/recruit/notice'
 
 # v04: 공개 기업별 공고목록 검사
 from crawler.portal_company import parse_public_company_listing,job_link,can_collect
@@ -564,7 +566,7 @@ def test_career_url_audit_extra_verified_employer_pages():
     roster=json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
     cs={c["id"]:c for c in roster}
     assert cs["spg"]["url"]=="https://spg.co.kr/aboutUs?tab=3"
-    assert cs["curexo"]["url"]=="https://career.curexo.com/"
+    assert cs["curexo"]["url"]=="https://career.curexo.com/a049e805-13d8-4ccc-97d2-a3fab412be13"
     assert cs["sbb"]["url"]=="http://www.sbb.co.kr"
     for cid in ("yujin","curexo","robocare","higen","samhyeon","samickthk","vone","knrsystem"):
         assert cs[cid]["alternative_careers_url"].startswith("https://")
@@ -572,3 +574,85 @@ def test_career_url_audit_extra_verified_employer_pages():
     for cid in ("yujin","curexo","robocare","higen","samhyeon","samickthk","vone","knrsystem"):
         assert cid in boards
         assert all(url.startswith("https://") for group in boards[cid].values() for url in group)
+
+
+
+def test_curexo_public_job_list_parses_not_about_pages():
+    curexo={"id":"curexo","name":"큐렉소","adapter":"curexo",
+            "url":"https://career.curexo.com/a049e805-13d8-4ccc-97d2-a3fab412be13"}
+    html="""<main><h1>채용 공고</h1><h2>채용 중</h2>
+       <a href="/321ed000-1d73-808d-b8e5-d1d13bbff9b3">의료로봇(관절) 기술지원 신입 경력</a>
+       <a href="/34ced000-1d73-80ab-8770-e1878089dae0">의료로봇(재활·척추) 임상/기술지원 신입 경력</a>
+       <a href="/034ad000-0000-0000-0000-000000000003">의료기기 마케팅 및 제품홍보</a>
+       <a href="/b11abc00-0000-0000-0000-000000000000">큐렉소 소개</a>
+       <a href="https://other-company.com/12345">기술지원 다른 회사 채용</a>
+       <a href="/a049e805-13d8-4ccc-97d2-a3fab412be13">채용 공고</a>
+       </main>"""
+    jobs,empty=parse_listing(curexo,html,curexo["url"])
+    assert len(jobs)==3 and not empty
+    assert any("의료로봇(관절) 기술지원" in j["title"] for j in jobs)
+    assert all(j["verification"]=="official" for j in jobs)
+    assert all(j["url"].startswith("https://career.curexo.com/") for j in jobs)
+
+
+def test_curexo_does_not_claim_hiring_without_open_label():
+    c={"id":"curexo","name":"큐렉소","adapter":"curexo","url":"https://career.curexo.com/"}
+    html='<a href="/321ed000-1d73-808d-b8e5-d1d13bbff9b3">의료로봇(관절) 기술지원</a>'
+    jobs,_=parse_listing(c,html,c["url"])
+    assert len(jobs)==1
+    assert jobs[0]["verification"]=="official_unverified"
+    assert jobs[0]["status"]=="확인필요"
+
+
+def test_angel_public_two_pages_collects_full_count():
+    from crawler.collect import scrape_official
+    class Resp:
+        def __init__(self,url,txt):
+            self.url=url;self.text=txt;self.status_code=200;self.headers={}
+        def raise_for_status(self):pass
+    class Session:
+        def __init__(self):self.urls=[]
+        def get(self,url,**kw):
+            self.urls.append(url)
+            def cards(nums):
+                return ''.join(f'<a href="/ko/recruit/notice/{i}"><div>필드 엔지니어 모집 {i}</div></a>' for i in nums)
+            html='<p>총 3건의 공고가 진행중입니다.</p>'
+            if "?page=2" in url:
+                html+=cards([3])
+            else:
+                html+=cards([1,2])+'<a href="?page=2">2</a>'
+            return Resp(url,html)
+    co={"id":"angel","name":"엔젤로보틱스","adapter":"angel",
+        "url":"https://www.angel-robotics.com/ko/recruit/notice"}
+    ss=Session()
+    jobs,status,note,complete=scrape_official(ss,co)
+    assert status=="성공" and complete
+    assert len(jobs)==3
+    assert len(ss.urls)==2
+
+
+def test_angel_partial_page_not_marked_complete():
+    from crawler.collect import scrape_official
+    class Resp:
+        def __init__(self,url,txt):self.url=url;self.text=txt;self.status_code=200;self.headers={}
+        def raise_for_status(self):pass
+    class Broken:
+        def get(self,url,**kw):
+            if "?page=2" in url:raise requests.RequestException("site unavailable")
+            return Resp(url,'<p>총 3건의 공고가 진행중입니다.</p>'
+                            '<a href="/ko/recruit/notice/1">필드 엔지니어 모집</a>')
+    co={"id":"angel","name":"엔젤로보틱스","adapter":"angel",
+        "url":"https://www.angel-robotics.com/ko/recruit/notice"}
+    jobs,status,note,complete=scrape_official(Broken(),co)
+    assert len(jobs)==1 and status=="제한" and not complete
+    assert "1/3" in note
+
+
+def test_new_official_job_urls_in_registry():
+    roster=json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
+    a={c["id"]:c for c in roster}
+    assert len(roster)==52
+    assert a["angel"]["url"]=="https://www.angel-robotics.com/ko/recruit/notice"
+    assert a["curexo"]["adapter"]=="curexo"
+    assert "a049e805" in a["curexo"]["url"]
+    assert a["doosan"]["url"].endswith("/dsp/sa/RecList.jsp")

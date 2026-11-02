@@ -1,12 +1,13 @@
 /**************************************************************
  * @name 국내 로봇기업 채용 대시보드
  * @file docs/app.js
- * @version v08
+ * @version v09
  * @description 채용/수집현황/이력 단일페이지, 신규/마감/직무/지역/기업 검색, CSV
  * @author OpenAI ChatGPT
  * @date 2026-10-16
  * @Revisions
  * - 현재 버전:
+ *   1) 공식 일부 판독 건수·전문사이트 대체 확보 사실을 기업별로 표시
  *   1) 채용 전문사이트 7곳 링크·공식채용/일반홈페이지 URL 진단 표시
  *   1) 신규 발견 48시간: 사람인/잡코리아 '확인 필요' 후보도 표시하며 진행으로 오인 금지
  *   1) 종료 공고는 기본 화면에서 숨기고 마감 탭에서만 확인(과거 이력은 유지)
@@ -189,12 +190,14 @@
       if(c.group==='중견기업'&&c.listing_status==='상장')category.append(el('div',{class:'source-hint',text:'상장 중견기업'}));
       tr.append(td(category));
       tr.append(td(chip(c.status||'미실행',statuses[c.status]||'idle')));
-      tr.append(td(el('span',{text:c.status==='성공'?String(c.official_count??0)+'건': '—'})));
+      tr.append(td(el('span',{text:(c.official_count>0 || c.status==='성공')?String(c.official_count??0)+'건':'—'})));
       const boardData=c.portal_results||{};
       const detail=Object.entries(boardData).filter(([k])=>k!=='사람인 API').map(([k,v])=>k+': '+v).join(' / ');
       tr.append(td(el('span',{text:String(c.candidate_count??0)+'건',title:detail})));
       const msg=el('div',{class:'source-msg',text:c.detail||'—'});
       if(c.official_url_kind)msg.append(el('div',{class:'source-sub',text:'URL 유형: '+c.official_url_kind}));
+      if(c.status!=='성공' && Number(c.candidate_count)>0)
+        msg.append(el('div',{class:'source-sub',text:'대체 채용목록 후보 '+c.candidate_count+'건 확보 · 실제 모집 여부 확인 필요'}));
       if(c.official_url_note)msg.append(el('div',{class:'source-sub',text:c.official_url_note}));
       if(c.status==='제한')msg.append(el('div',{class:'source-sub',text:'※ 웹 접속 성공과 채용 목록 판독 성공은 다릅니다.'}));
       if(c.status==='실패'||c.status==='보안오류')msg.append(el('div',{class:'source-sub',text:'※ 자동 수집환경에서 확인 실패. 브라우저 접속 가능 여부와 별개'}));
