@@ -1,4 +1,4 @@
-/* /**************************************************************
+/**************************************************************
  * @name ROBOT WATCH 관리 페이지 스타일
  * @file docs/manage.css
  * @version v01
@@ -10,7 +10,7 @@
  *   1) 편집 폼·수집상태·GitHub 저장 영역 디자인
  * - 이전 버전:
  *   1) 최초 작성
- **************************************************************/ */
+ **************************************************************/
 :root{font-family:"Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;color:#1d3345;background:#f1f5f8}
 *{box-sizing:border-box}body{margin:0;font-size:14px}a{color:inherit}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{opacity:.55;cursor:wait}
 .wrap{max-width:1450px;margin:0 auto;padding:0 24px}.top{background:#0b2439;color:white}.topline{height:70px;display:flex;align-items:center;justify-content:space-between;gap:14px}.brand{text-decoration:none;font-size:19px;font-weight:850;letter-spacing:.7px}.brand b{color:#47dad2}.mark{font-size:25px;margin-right:9px;color:#47dad2}.back{text-decoration:none;color:#c6d8e4;font-size:13px}.back:hover{text-decoration:underline}

@@ -478,7 +478,7 @@ def test_closed_posts_hidden_by_default_but_kept_in_archive():
     root=Path(__file__).resolve().parents[1]
     app=(root/"docs/app.js").read_text(encoding="utf-8")
     html=(root/"docs/index.html").read_text(encoding="utf-8")
-    assert "state.status==='all'&&status==='마감'" in app
+    assert "state.status==='all'&&['마감','관리제외'].includes(status)" in app
     assert 'data-status="마감"' in html
     assert '모집·확인 필요' in html
 
