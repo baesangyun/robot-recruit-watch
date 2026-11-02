@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 국내 로봇기업 채용 자동수집기
 #  * @file crawler/collect.py
-#  * @version v14
+#  * @version v15
 #  * @description 공식 채용페이지/공개 공고 피드 수집, 신규·진행·마감 판정, 기업별 검사 기록
 #  * @author OpenAI ChatGPT
 #  * @date 2026-11-03
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 관리 페이지가 저장한 기업/포털 설정과 패스·관리 제외 상태 반영
 #  *   1) 트위니 공식 GreetingHR 수집기 재사용 및 사람인 채용목록 대체 연결
 #  *   1) 큐렉소 공식 채용 목록 UUID 전용 판독·엔젤로보틱스 공식 페이지 탐색 및 2페이지 수집
 #  *   2) 공식 공고 총건수 대비 부분 수집 감지·두산 실제 채용 목록 URL 연결
@@ -92,15 +93,52 @@ HIRE_HINT = re.compile(r"채용|모집|인재|엔지니어|개발자|연구원|�
 NOT_JOB = re.compile(r"채용공고$|채용정보$|채용안내$|공지사항|채용절차|FAQ|privacy|career$|recruit$|지원방법|접수방법|기업문화|회원가입|로그인|목록|더보기|홈페이지|인재풀 등록$|전체 공고", re.I)
 NO_OPENINGS = re.compile(r"(현재|진행.?중인|등록된).{0,12}(채용|공고).{0,15}(없|0건)|no (open|available|current) (positions|jobs|openings)", re.I)
 DATE_RX = re.compile(r"(20\d\d)[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})")
-BOARD_SITES = {
-    "잡코리아": "jobkorea.co.kr",
-    "사람인": "saramin.co.kr",
-    "인크루트": "incruit.com",
-    "LinkedIn": "linkedin.com",
-    "리멤버": "career.rememberapp.co.kr",
-    "원티드": "wanted.co.kr",
-    "잡플래닛": "jobplanet.co.kr",
-}
+PORTAL_SITES_FILE = ROOT / "job_portals.json"
+DEFAULT_PORTALS = [
+    {"id":"jobkorea","name":"잡코리아","url":"https://www.jobkorea.co.kr"},
+    {"id":"saramin","name":"사람인","url":"https://www.saramin.co.kr"},
+    {"id":"incruit","name":"인크루트","url":"https://search.incruit.com"},
+    {"id":"linkedin","name":"LinkedIn","url":"https://www.linkedin.com"},
+    {"id":"remember","name":"리멤버","url":"https://career.rememberapp.co.kr"},
+    {"id":"wanted","name":"원티드","url":"https://www.wanted.co.kr"},
+    {"id":"jobplanet","name":"잡플래닛","url":"https://www.jobplanet.co.kr"},
+]
+
+
+def load_portal_config(path: Path = PORTAL_SITES_FILE) -> list[dict]:
+    try:
+        entries=json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(entries,list):raise ValueError("portal configuration must be a JSON list")
+    except FileNotFoundError:
+        entries=DEFAULT_PORTALS
+    result=[];names=set()
+    for site in entries:
+        if not isinstance(site,dict) or site.get("monitor_status") in ("deleted","pass"):
+            continue
+        name=str(site.get("name") or "").strip()
+        address=str(site.get("url") or "").strip()
+        try:
+            u=urllib.parse.urlsplit(address)
+            valid=u.scheme=="https" and bool(u.hostname) and not u.username and not u.password
+        except ValueError:
+            valid=False
+        if not valid or not name or name in names:
+            LOG.warning("Ignoring invalid or duplicated job portal: %s",name)
+            continue
+        names.add(name)
+        result.append({"id":site.get("id",""),"name":name,"url":address})
+    return result
+
+
+PORTAL_CONFIG = load_portal_config()
+def portal_domain(site: dict) -> str:
+    host=urllib.parse.urlsplit(site["url"]).hostname.lower()
+    if site["name"]=="인크루트" and host=="search.incruit.com":
+        return "incruit.com"
+    return host.removeprefix("www.")
+
+
+BOARD_SITES = {p["name"]:portal_domain(p) for p in PORTAL_CONFIG}
 # Extra search terms supplement (never replace) the existing broad company search.
 # One grouped role query per company/platform limits extra search-index requests.
 SERVICE_SEARCH_TERMS = (
@@ -122,7 +160,7 @@ SERVICE_ROLE_RX = re.compile(
 
 VERIFIED_SOURCES = {"official", "platform_api"}
 COMPANY_BOARD_FILE = ROOT / 'board_company_pages.json'
-RSS_HOSTS = ("jobkorea.co.kr", "saramin.co.kr", "incruit.com", "linkedin.com", "wanted.co.kr", "rememberapp.co.kr", "jobplanet.co.kr", "career.greetinghr.com", "ninehire.site", "breezy.hr", "recruit.hd.com", "career.doosan.com", "hanwhain.com", "rainbow-robotics.com", "yujinrobot.com", "angel-robotics.com")
+RSS_HOSTS = tuple(set(BOARD_SITES.values())) + ("career.greetinghr.com", "ninehire.site", "breezy.hr", "recruit.hd.com", "career.doosan.com", "hanwhain.com", "rainbow-robotics.com", "yujinrobot.com", "angel-robotics.com")
 
 
 def iso_now() -> str:
@@ -500,7 +538,11 @@ def indexed_job_url_valid(platform: str, url: str) -> bool:
     if not safe_link(url) or not host_allowed(url, (BOARD_SITES[platform],)):
         return False
     check = INDEXED_JOB_PATHS.get(platform)
-    return check is None or bool(check.fullmatch(urllib.parse.urlsplit(url).path))
+    if check is not None:return bool(check.fullmatch(urllib.parse.urlsplit(url).path))
+    if platform in ("잡코리아","사람인","인크루트","LinkedIn"):return True
+    # New provider: require an individual-post-shaped URL, not its index/home.
+    path=urllib.parse.urlsplit(url).path
+    return bool(re.search(r"/(?:job|jobs|posting|postings|position|recruit|vacancy|career)(?:/|[-_])[^/]{5,}",path,re.I))
 
 
 def company_url_kind(company: dict) -> str:
@@ -523,13 +565,16 @@ def company_url_kind(company: dict) -> str:
 def board_search_url(platform: str, company_name: str, role_search: bool = False) -> str:
     """Indexed company or service-role jobs; no portal scraping or login bypass."""
     domain = BOARD_SITES[platform]
-    if platform == "LinkedIn":
+    if platform == "LinkedIn" and domain == "linkedin.com":
         company_term = LINKEDIN_NAMES.get(company_name, company_name)
         query = 'site:linkedin.com/jobs/view/ "' + company_term + '"'
-    elif platform in INDEXED_JOB_PATHS:
-        scope = {"리멤버": "site:career.rememberapp.co.kr/job/posting/",
-                 "원티드": "site:wanted.co.kr/wd/",
-                 "잡플래닛": "site:jobplanet.co.kr/job/"}[platform]
+    elif platform in INDEXED_JOB_PATHS and domain == {
+        "리멤버":"career.rememberapp.co.kr", "원티드":"wanted.co.kr",
+        "잡플래닛":"jobplanet.co.kr",
+    }.get(platform):
+        scope = {"리멤버":"site:career.rememberapp.co.kr/job/posting/",
+                 "원티드":"site:wanted.co.kr/wd/",
+                 "잡플래닛":"site:jobplanet.co.kr/job/"}[platform]
         query = scope + ' "' + company_name + '"'
     else:
         query = 'site:' + domain + ' "' + company_name + '" 채용'
@@ -543,7 +588,7 @@ def board_search_url(platform: str, company_name: str, role_search: bool = False
 def portal_links(company_name: str) -> dict[str,str]:
     # Deep-link into each site's public search screen; never assume results are currently open.
     q=urllib.parse.quote(company_name)
-    return {
+    links = {
         "잡코리아": "https://www.jobkorea.co.kr/Search/?stext=" + q,
         "사람인": "https://www.saramin.co.kr/zf_user/search/recruit?searchword=" + q,
         "인크루트": "https://search.incruit.com/list/search.asp?col=job&kw=" + q,
@@ -561,6 +606,11 @@ def portal_links(company_name: str) -> dict[str,str]:
             )
         },
     }
+    original = {"잡코리아":"jobkorea.co.kr","사람인":"saramin.co.kr","인크루트":"search.incruit.com","LinkedIn":"linkedin.com","리멤버":"career.rememberapp.co.kr","원티드":"wanted.co.kr","잡플래닛":"jobplanet.co.kr"}
+    for name,domain in BOARD_SITES.items():
+        if name not in links or domain != original.get(name):
+            links[name]="https://www.google.com/search?q="+urllib.parse.quote('site:'+domain+' "'+company_name+'" 채용')
+    return {name:links[name] for name in BOARD_SITES}
 
 
 def company_identity(text: str) -> str:
@@ -759,7 +809,9 @@ def reconcile(old_data: dict, discovered: list[dict], statuses: dict[str, dict],
 
 
 def run(*, with_search: bool = True, session: requests.Session | None = None) -> dict:
-    roster = json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
+    config = json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
+    retired_ids={co["id"] for co in config if co.get("monitor_status")=="deleted"}
+    roster=[co for co in config if co.get("monitor_status")!="deleted"]
     prev = load_previous()
     now = iso_now()
     session = session or requests.Session()
@@ -805,12 +857,16 @@ def run(*, with_search: bool = True, session: requests.Session | None = None) ->
         return company['id'],found,notes
 
     for company in roster:
-        official,status,detail,complete=scrape_official(session,company)
+        if company.get("monitor_status")=="pass":
+            official,status,detail,complete=[], "패스", "공식 URL 점검 사용자 패스 · 전문사이트 검색은 계속", False
+        else:
+            official,status,detail,complete=scrape_official(session,company)
         discovered.extend(official)
         statuses[company['id']]={
             'id':company['id'],'name':company['name'],'group':company['group'],
             'sector':company['sector'],'url':company.get('url'),
             'adapter':company['adapter'],'status':status,'detail':detail,
+            'monitor_status':company.get("monitor_status","active"),
             'investors':company.get('investors',''),
             'investment_relation':company.get('investment_relation',''),
             'investment_source_url':company.get('investment_source_url'),
@@ -842,12 +898,16 @@ def run(*, with_search: bool = True, session: requests.Session | None = None) ->
                 statuses[company_id]['portal_results']=notes
                 statuses[company_id]['search_status']='전문 채용사이트 7곳: 기업명+유지보수 직무 검색' if notes else '검색 미실행'
     jobs = reconcile(prev, deduplicate_sources(discovered), statuses, now)
+    for job in jobs:
+        if job.get("company_id") in retired_ids:
+            job["status"]="관리제외"
+            job["new"]=False
     from crawler.job_status import update_jobkorea_statuses
     detail_check = update_jobkorea_statuses(session, jobs, now=datetime.fromisoformat(now))
     LOG.info("JobKorea status checks: %s", detail_check)
     # Keep archived closed posts for the '마감' tab; the default page hides them.
     jobs.sort(key=lambda j: (j.get("status") == "마감", not j.get("new", False), j.get("first_seen") or ""))
-    result = {"version": "v13", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
+    result = {"version": "v14", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
               "history": ([{"time":now, "jobs_official":sum(1 for j in jobs if j.get("verification")=="official" and j.get("status")=="진행"),
                            "success":sum(s["status"]=="성공" for s in statuses.values()),
                            "limited":sum(s["status"] in ("제한","미설정") for s in statuses.values()),

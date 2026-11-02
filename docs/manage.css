@@ -1,0 +1,30 @@
+/* /**************************************************************
+ * @name ROBOT WATCH 관리 페이지 스타일
+ * @file docs/manage.css
+ * @version v01
+ * @description 기업/포털 관리 PC·모바일 반응형 UI
+ * @author OpenAI ChatGPT
+ * @date 2026-11-03
+ * @Revisions
+ * - 현재 버전:
+ *   1) 편집 폼·수집상태·GitHub 저장 영역 디자인
+ * - 이전 버전:
+ *   1) 최초 작성
+ **************************************************************/ */
+:root{font-family:"Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;color:#1d3345;background:#f1f5f8}
+*{box-sizing:border-box}body{margin:0;font-size:14px}a{color:inherit}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{opacity:.55;cursor:wait}
+.wrap{max-width:1450px;margin:0 auto;padding:0 24px}.top{background:#0b2439;color:white}.topline{height:70px;display:flex;align-items:center;justify-content:space-between;gap:14px}.brand{text-decoration:none;font-size:19px;font-weight:850;letter-spacing:.7px}.brand b{color:#47dad2}.mark{font-size:25px;margin-right:9px;color:#47dad2}.back{text-decoration:none;color:#c6d8e4;font-size:13px}.back:hover{text-decoration:underline}
+.intro{padding:43px 0 30px}.eyebrow{text-transform:uppercase;letter-spacing:1.7px;font-size:11px;font-weight:800;color:#078f96}.intro h1{font-size:32px;letter-spacing:-1px;margin:9px 0 13px}.intro h1 em{font-style:normal;color:#078d91}.intro p{max-width:900px;line-height:1.8;color:#5b7082;margin:0}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:21px}.metric{background:#fff;border-radius:12px;border:1px solid #dde6ec;padding:20px}.metric span{display:block;color:#748799;font-size:12px}.metric strong{font-size:29px;margin-right:3px}.metric small{font-size:12px;color:#60778c}
+.card{background:#fff;border-radius:13px;border:1px solid #dae4ec;box-shadow:0 3px 18px rgba(19,48,68,.04);margin-bottom:20px;overflow:hidden}
+.tabs{display:flex;gap:8px;padding:16px 17px 0;border-bottom:1px solid #e3e9ee}.tab{border:0;border-bottom:3px solid transparent;background:none;padding:12px 17px;font-weight:750;color:#6a8193}.tab.selected{border-color:#07919a;color:#087b86}.tab span{margin-left:6px;background:#e9eff2;border-radius:9px;padding:2px 7px;color:#4e6473;font-size:11px}
+.toolbar{display:flex;align-items:center;gap:15px;padding:18px;flex-wrap:wrap}.search{display:flex;gap:10px;align-items:center;background:#f8fafc;border:1px solid #d5e0e8;padding:9px 14px;border-radius:8px;flex:1;min-width:200px;color:#8495a3}.search input{border:0;outline:0;background:transparent;width:100%}.show-deleted{display:flex;gap:7px;align-items:center;color:#667f90;font-size:12px;white-space:nowrap}
+.primary{background:#077d88;border:1px solid #077d88;color:#fff;border-radius:8px;font-weight:750;padding:11px 17px;white-space:nowrap}.primary:hover{background:#075d68}.muted{border:1px solid #cad7e0;color:#526a7f;background:#fff;padding:11px 16px;border-radius:8px}.text-button{border:0;background:transparent;color:#63788a}
+.section-hint{margin:0;padding:0 18px 17px;color:#738597;font-size:12px;line-height:1.6}
+.table-wrap{overflow:auto;max-height:950px}table{width:100%;border-collapse:collapse;min-width:780px}th{text-align:left;background:#f4f8fa;color:#5d7285;font-size:12px;font-weight:750;padding:14px 15px;border-top:1px solid #e0e8ed}td{padding:13px 15px;border-top:1px solid #e9eef2;vertical-align:middle}tr:hover td{background:#fbfdfd}tr.deleted td{opacity:.6}td.name{font-weight:750}td.url{max-width:580px;word-break:break-all;color:#357387;font-size:12px}td.url a{text-decoration:none}td.url a:hover{text-decoration:underline}
+.state{font-size:11px;border-radius:20px;padding:5px 9px;font-weight:700;white-space:nowrap;background:#e5f5f0;color:#12765c}.state.pass{background:#fff2da;color:#97610a}.state.deleted{background:#efeff0;color:#6b737a}
+.smallbtn{font-size:12px;padding:7px 11px;border:1px solid #d2e0e7;border-radius:6px;background:#fff;margin:2px 3px;color:#386174}.smallbtn.danger{color:#aa5860}.empty{padding:40px;text-align:center;color:#78909c}
+.editor{padding:25px}.editor-title{display:flex;justify-content:space-between;align-items:start;gap:10px;border-bottom:1px solid #e4eaed;margin-bottom:24px;padding-bottom:18px}.editor-title h2{margin:6px 0 0;font-size:21px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.form-grid label,.save-controls label{display:flex;flex-direction:column;gap:8px;font-size:13px;font-weight:700;color:#4b6175}.form-grid input,.form-grid select,.form-grid textarea,.save-controls input{border:1px solid #cddce5;border-radius:7px;background:#fff;padding:12px;outline:none;width:100%;font-size:13px;color:#264154}.form-grid input:focus,.form-grid textarea:focus,.save-controls input:focus{border-color:#058e99;box-shadow:0 0 0 3px #05a6b11a}.form-grid .wide{grid-column:1/-1}.required{color:#c34d54}.form-note{color:#667f92;font-size:12px;line-height:1.75;margin-top:14px}.actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px}
+.save-card{display:grid;grid-template-columns:1.25fr 1fr;gap:24px;padding:26px}.save-info h2{font-size:22px;margin:8px 0}.save-info p{line-height:1.7;color:#5f7385;font-size:13px}.save-info .safe{background:#f1fbfa;border:1px solid #cbe5e2;border-radius:8px;padding:12px;color:#37646b}.save-controls{display:flex;flex-direction:column;gap:10px}.token-info{margin:0;font-size:11px;line-height:1.7;color:#7b8d99}.save-status{font-size:12px;border-radius:7px;background:#f0f4f7;padding:12px;color:#60788b;line-height:1.5}.save-status.ok{background:#e7f6f1;color:#12694e}.save-status.err{background:#ffefef;color:#ae4044}footer{display:flex;justify-content:space-between;gap:15px;color:#788b99;font-size:11px;padding:9px 0 35px}
+[hidden]{display:none!important}
+@media(max-width:800px){.summary{grid-template-columns:repeat(2,1fr)}.save-card{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.form-grid .wide{grid-column:auto}.intro h1{font-size:25px}footer{flex-direction:column}.toolbar{align-items:stretch}.toolbar .primary{width:100%}.tabs{padding:9px 8px 0}.tab{padding:12px 9px}.wrap{padding:0 14px}.editor{padding:17px}}

@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 국내 로봇 채용 모니터 단위테스트
 #  * @file tests/test_collect.py
-#  * @version v16
+#  * @version v17
 #  * @description 기업 수·HTML 공고 파싱·중복/신규/마감 오판 방지 테스트
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-31
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 사용자 관리 기업/포털 JSON과 패스·관리 제외 지원 검사
 #  *   1) 트위니 GreetingHR 채용공고 / 사람인 보완 경로 유지 검증
 #  *   1) 큐렉소 UUID 공고 판독/허위공고 방지, 엔젤 채용목록 페이지네이션·부분수집 체크
 #  *   1) 기존 URL 정정 및 큐렉소·로보케어·삼익THK 등 모집 목록 경로 검증
@@ -38,8 +39,8 @@ BEAR = {"id":"bear","name":"베어로보틱스","adapter":"breezy","url":"https:
 
 def test_company_roster():
     roster = json.loads(ROSTER_FILE.read_text())
-    assert len(roster) == 52
-    assert len({c['id'] for c in roster}) == 52
+    assert len(roster) >= 52
+    assert len({c['id'] for c in roster}) == len(roster)
     assert all(c['name'] and c['adapter'] and c['group'] for c in roster)
 
 
@@ -223,7 +224,7 @@ def test_frontend_100_per_page_and_group_desc_sort():
     app=(Path(__file__).resolve().parents[1]/'docs/app.js').read_text()
     assert 'pageSize: 100' in app
     assert "(b.group||'').localeCompare(a.group||'','ko')" in app
-    assert "['잡코리아','사람인','인크루트','LinkedIn','리멤버','원티드','잡플래닛']" in app
+    assert "Object.keys(c.portal_links||{})" in app
 
 
 def test_angel_official_career_address():
@@ -376,7 +377,7 @@ def test_maintenance_keyword_search_invoked_for_each_board():
 def test_expansion_mid_and_corporate_investment_provenance():
     roster=json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
     assert set(["hanwha","doosan","hd","samsung","lg","hyundai","rainbow","robotis","neuromeka","bear","angel","kohyoung","yujin","yuil","robostar","clobot","twinny","trobotics","everybot","roborobo","sbb","spg","higen","vd","neubility","robocare","curexo","raon","future","robot3"]).issubset({c["id"] for c in roster})
-    assert len(roster)==len({c["id"] for c in roster})==len({c["name"] for c in roster})==52
+    assert len(roster)==len({c["id"] for c in roster})==len({c["name"] for c in roster}) and len(roster)>=52
     assert sum(c["group"]=="중견기업" for c in roster)==3
     assert sum(c["group"]=="대기업 투자기업" for c in roster)==5
     for c in roster:
@@ -402,7 +403,7 @@ def test_investment_links_on_ui_and_seed_company_count():
 def test_exclude_closed_firm_and_include_active_corporate_investee():
     roster=json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
     ids={c["id"] for c in roster}
-    assert len(roster)==52
+    assert len(roster)>=52
     assert "floatic" not in ids
     assert "ndotlight" in ids
     c=next(c for c in roster if c["id"]=="ndotlight")
@@ -484,7 +485,7 @@ def test_closed_posts_hidden_by_default_but_kept_in_archive():
 def test_missing_robotics_firms_registered():
     cs=json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
     by={c["id"]:c for c in cs}
-    assert len(cs)==len(by)==52
+    assert len(cs)==len(by) and len(cs)>=52
     assert all(by[k]["group"]=="상장기업" for k in ["bigwave","brils","zenixrobotics","pnnsrobotics","spsystems","vone","samickthk","cowin","samhyeon","knrsystem"])
     assert by["hlrobotics"]["group"]=="대기업계열"
     boards=json.loads((ROSTER_FILE.parent/"board_company_pages.json").read_text(encoding="utf-8"))
@@ -519,7 +520,7 @@ from crawler.collect import indexed_job_url_valid, company_url_kind
 
 def test_seven_professional_job_search_sources():
     expected={"잡코리아","사람인","인크루트","LinkedIn","리멤버","원티드","잡플래닛"}
-    assert set(BOARD_SITES)==expected
+    assert set(BOARD_SITES)=={v["name"] for v in load_portal_config()}
     for company in ["유진로봇","빅웨이브로보틱스","에이치엘로보틱스"]:
         links=portal_links(company)
         assert set(links)==expected
@@ -559,7 +560,7 @@ def test_yujin_verified_alternate_listing_and_old_link_warning():
 def test_legacy_sources_keep_linked_instead_of_removal():
     from pathlib import Path
     app=(Path(__file__).resolve().parents[1]/"docs/app.js").read_text(encoding="utf-8")
-    assert "'잡코리아','사람인','인크루트','LinkedIn','리멤버','원티드','잡플래닛'" in app
+    assert "Object.keys(c.portal_links||{})" in app
     assert "회사 홈 ↗" in app
 
 
@@ -652,7 +653,7 @@ def test_angel_partial_page_not_marked_complete():
 def test_new_official_job_urls_in_registry():
     roster=json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
     a={c["id"]:c for c in roster}
-    assert len(roster)==52
+    assert len(roster)>=52
     assert a["angel"]["url"]=="https://www.angel-robotics.com/ko/recruit/notice"
     assert a["curexo"]["adapter"]=="curexo"
     assert "a049e805" in a["curexo"]["url"]
@@ -680,3 +681,41 @@ def test_twinny_field_engineer_posting_parses_with_existing_greeting_logic():
     assert not empty and len(jobs)==1
     assert jobs[0]["verification"]=="official"
     assert jobs[0]["role"]=="유지보수·CS"
+
+
+
+from crawler.collect import load_portal_config
+
+
+def test_manager_configurations_stay_integrated():
+    entries=load_portal_config()
+    assert len(entries)==len(BOARD_SITES)
+    assert all(e["url"].startswith("https://") for e in entries)
+    docroot=ROSTER_FILE.parent/"docs"
+    html=(docroot/"manage.html").read_text(encoding="utf-8")
+    script=(docroot/"manage.js").read_text(encoding="utf-8")
+    assert "job_portals.json" in script and "companies.json" in script
+    assert "관리 페이지" in html and "패스" in html
+    assert "git/trees" in script and "git/commits" in script
+    assert "localStorage" not in script and "sessionStorage" not in script
+    assert "Authorization" in script
+    assert "manage.html" in (docroot/"index.html").read_text(encoding="utf-8")
+
+
+def test_portal_manager_skips_deleted_and_invalid_urls(tmp_path):
+    source=[
+        {"name":"예시","url":"https://jobs.example.com","monitor_status":"active"},
+        {"name":"삭제","url":"https://deleted.example.com","monitor_status":"deleted"},
+        {"name":"오류","url":"javascript:alert(1)","monitor_status":"active"},
+    ]
+    p=tmp_path/"portals.json"
+    p.write_text(json.dumps(source,ensure_ascii=False),encoding="utf-8")
+    active=load_portal_config(p)
+    assert len(active)==1 and active[0]["name"]=="예시"
+
+
+def test_soft_deleted_company_and_pass_semantics():
+    s=(ROSTER_FILE.parent/"crawler/collect.py").read_text(encoding="utf-8")
+    assert 'co.get("monitor_status")=="deleted"' in s
+    assert 'company.get("monitor_status")=="pass"' in s
+    assert 'job["status"]="관리제외"' in s

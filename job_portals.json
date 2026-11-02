@@ -1,0 +1,44 @@
+[
+  {
+    "id": "jobkorea",
+    "name": "잡코리아",
+    "url": "https://www.jobkorea.co.kr",
+    "monitor_status": "active"
+  },
+  {
+    "id": "saramin",
+    "name": "사람인",
+    "url": "https://www.saramin.co.kr",
+    "monitor_status": "active"
+  },
+  {
+    "id": "incruit",
+    "name": "인크루트",
+    "url": "https://search.incruit.com",
+    "monitor_status": "active"
+  },
+  {
+    "id": "linkedin",
+    "name": "LinkedIn",
+    "url": "https://www.linkedin.com",
+    "monitor_status": "active"
+  },
+  {
+    "id": "remember",
+    "name": "리멤버",
+    "url": "https://career.rememberapp.co.kr",
+    "monitor_status": "active"
+  },
+  {
+    "id": "wanted",
+    "name": "원티드",
+    "url": "https://www.wanted.co.kr",
+    "monitor_status": "active"
+  },
+  {
+    "id": "jobplanet",
+    "name": "잡플래닛",
+    "url": "https://www.jobplanet.co.kr",
+    "monitor_status": "active"
+  }
+]

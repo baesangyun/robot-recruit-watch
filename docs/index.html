@@ -1,12 +1,13 @@
 <!-- /**************************************************************
  * @name 로봇 채용 레이더 단일페이지
  * @file docs/index.html
- * @version v10
+ * @version v11
  * @description PC·모바일 채용 통합 대시보드 마크업
  * @author OpenAI ChatGPT
  * @date 2026-10-16
  * @Revisions
  * - 현재 버전:
+ *   1) 기업·채용포털 설정 관리페이지 링크 추가
  *   1) 리멤버·원티드·잡플래닛 검색경로 추가 및 기업별 URL 유형·접속상태 안내
  *   1) 최근 48시간 발견한 채용후보도 신규 표시하되 모집 검증 별도 유지
  *   1) 누락된 로봇 관련 기업 11곳 추가, 52개 모니터링
@@ -43,6 +44,7 @@
       <button data-view="jobs" class="side-nav-item active" type="button"><span class="nav-icon">▦</span><span>채용 공고</span><span id="nav-job-count" class="nav-amount">0</span></button>
       <button data-view="companies" class="side-nav-item" type="button"><span class="nav-icon">◎</span><span>기업 수집 현황</span><span id="nav-company-count" class="nav-amount">52</span></button>
       <button data-view="history" class="side-nav-item" type="button"><span class="nav-icon">◷</span><span>수집 실행 이력</span></button>
+      <a class="side-nav-item" href="./manage.html" style="text-decoration:none"><span class="nav-icon">⚙</span><span>기업·포털 관리</span></a>
     </nav>
     <div class="side-overline spaced">QUICK FILTER</div>
     <div class="side-quick" role="group" aria-label="빠른 직무 필터">

@@ -1,12 +1,13 @@
 /**************************************************************
  * @name 국내 로봇기업 채용 대시보드
  * @file docs/app.js
- * @version v09
+ * @version v10
  * @description 채용/수집현황/이력 단일페이지, 신규/마감/직무/지역/기업 검색, CSV
  * @author OpenAI ChatGPT
  * @date 2026-10-16
  * @Revisions
  * - 현재 버전:
+ *   1) 신규 사용자 추가 포털 동적 링크 및 관리 제외 공고 표시 필터
  *   1) 공식 일부 판독 건수·전문사이트 대체 확보 사실을 기업별로 표시
  *   1) 채용 전문사이트 7곳 링크·공식채용/일반홈페이지 URL 진단 표시
  *   1) 신규 발견 48시간: 사람인/잡코리아 '확인 필요' 후보도 표시하며 진행으로 오인 금지
@@ -25,6 +26,7 @@
   const state = { data: null, view: 'jobs', status: 'all', term: '', role: '', region: '', scope: '', company: '', page: 1, pageSize: 100, sort: 'recent', companyTerm: '' };
   const clean = (v) => String(v ?? '').trim();
   const jobStatus = (j) => {
+    if (j.status === '관리제외') return '관리제외';
     if (j.status === '마감') return '마감';
     if (!['official','platform_api'].includes(j.verification)) return '확인필요';
     return j.status === '확인필요' ? '확인필요' : '진행';
@@ -104,8 +106,8 @@
     setText('hero-company-count',companies.length); setText('nav-company-count',companies.length); setText('last-sync',state.data.last_run?formatDate(state.data.last_run,true):'아직 실행 전');
     setText('stat-new',fresh.length); setText('stat-active',active.length); setText('stat-closed',closed.length);
     setText('stat-success',success); setText('stat-success-total','/ '+companies.length);
-    setText('nav-job-count',jobs.filter(j=>jobStatus(j)!=='마감').length);
-    setText('num-all',jobs.filter(j=>jobStatus(j)!=='마감').length); setText('num-new',fresh.length);
+    setText('nav-job-count',jobs.filter(j=>!['마감','관리제외'].includes(jobStatus(j))).length);
+    setText('num-all',jobs.filter(j=>!['마감','관리제외'].includes(jobStatus(j))).length); setText('num-new',fresh.length);
     setText('num-active',active.length); setText('num-closed',closed.length);
     setText('num-pending',jobs.filter(j=>jobStatus(j)==='확인필요').length);
     setText('companies-total',companies.length);
@@ -121,7 +123,7 @@
     const term=state.term.toLocaleLowerCase('ko');
     let jobs=(state.data.jobs||[]).filter(j=>{
       const status=jobStatus(j);
-      if(state.status==='all'&&status==='마감') return false; // Closed jobs remain only in the archive tab.
+      if(state.status==='all'&&['마감','관리제외'].includes(status)) return false; // Closed jobs remain only in the archive tab.
       if(state.status==='new'&&!recentlyDiscovered(j)) return false;
       if(state.status!=='new'&&state.status!=='all'&&status!==state.status) return false;
       if(state.scope && scopeOf(j)!==state.scope) return false;
@@ -213,7 +215,7 @@
       if(c.alternative_careers_url){const alt=safelyOpen(c.alternative_careers_url);if(alt)links.append(el('a',{class:'source-link',href:alt,target:'_blank',rel:'noopener noreferrer',text:'대체 채용목록 ↗'}));}
       if(c.investors&&c.investment_source_url){const u=safelyOpen(c.investment_source_url);if(u)links.append(el('a',{class:'board-link',href:u,title:c.investment_relation,target:'_blank',rel:'noopener noreferrer',text:'투자 근거 ↗'}));}
       if(c.size_evidence_url){const u=safelyOpen(c.size_evidence_url);if(u)links.append(el('a',{class:'board-link',href:u,target:'_blank',rel:'noopener noreferrer',text:'중견기업 근거 ↗'}));}
-      for(const site of ['잡코리아','사람인','인크루트','LinkedIn','리멤버','원티드','잡플래닛']){
+      for(const site of Object.keys(c.portal_links||{})){
         const target=safelyOpen((c.portal_links||{})[site]);
         if(target)links.append(el('a',{class:'board-link',href:target,target:'_blank',rel:'noopener noreferrer',text:site+( ['리멤버','원티드','잡플래닛'].includes(site)?' 검색 ↗':' ↗')}));
       }
