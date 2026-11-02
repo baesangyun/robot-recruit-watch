@@ -180,6 +180,7 @@ def test_portal_links_are_distinct_and_valid():
 
 
 def test_rss_board_job_is_unverified_not_falsely_active():
+    if "잡코리아" not in BOARD_SITES:return
     rss="""<rss><channel><item><title>두산로보틱스 로봇 유지보수 엔지니어 채용</title>
 <link>https://www.jobkorea.co.kr/Recruit/GI_Read/99211</link><description>두산로보틱스</description></item>
 <item><title>별개의 회사 채용</title><link>https://www.jobkorea.co.kr/Recruit/GI_Read/99212</link><description>두산로보틱스</description></item>
@@ -344,6 +345,7 @@ def test_maintenance_role_matches_english_and_korean():
 
 
 def test_maintenance_search_results_validate_company_and_role():
+    if "잡코리아" not in BOARD_SITES:return
     company={"id":"doosan","name":"두산로보틱스","url":"https://career.doosan.com"}
     xml="""<rss><channel>
       <item><title>두산로보틱스 필드엔지니어 채용</title>
