@@ -1,17 +1,19 @@
 # /**************************************************************
 #  * @name 국내 로봇기업 채용 자동수집기
 #  * @file crawler/collect.py
-#  * @version v10
+#  * @version v11
 #  * @description 공식 채용페이지/공개 공고 피드 수집, 신규·진행·마감 판정, 기업별 검사 기록
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-31
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 7개 채용검색 사이트(리멤버·원티드·잡플래닛 추가) 공개 검색 색인 지원
+#  *   2) 공식 채용 URL·기업 홈페이지·외부 채용목록 구분, 접근 문제를 화면에 전달
 #  *   1) 로봇 관련 상장기업 10개와 HL로보틱스 추가(총 52개)
 #  *   1) 잡코리아 공고 상세 공개페이지 마감 여부 확인 및 오래된 공고 기본목록 제외
 #  *   1) 폐업 이력이 확인된 플로틱 제외, 채용 중인 네이버 투자 기업 엔닷라이트 대체
 #  *   1) 41개 로봇기업 확장: 중견·대기업 투자 대상 및 검증 출처 전달
-#  *   1) 등록 기업 × 4개 채용사이트에서 기업명 기본 검색과 유지보수 직무 검색 병행
+#  *   1) 등록 기업 × 7개 채용사이트에서 기업명 기본 검색과 유지보수 직무 검색 병행
 #  *   2) 필드엔지니어/Field Engineer 등 12개 검색어 추가, 중복/오인 방지 유지
 #  *   1) LinkedIn 색인 공고 링크 및 기업별 직접 검색 추가
 #  *   1) v03: 채용전문사이트 후보 및 승인 API 연동, 목록 가독성·정렬·수집 오류 확인
@@ -56,7 +58,7 @@ FIND_PATTERNS = {
     "yujin": ["a[href*='/company/recruit/']"],
 }
 ROLE_RULES = [
-    ("유지보수·CS", r"유지보수|A/S|\bCS\b|C/S|서비스엔지니어|field engineer|field service|필드엔지니어|고객지원|기술지원|technical support|customer success|AS / CS|설치.?시운전|현장.?엔지니어"),
+    ("유지보수·CS", r"유지보수|A/S|\bCS\b|C/S|서비스엔지니어|field engineer|field service|필드\s*엔지니어|필드\s*서비스\s*엔지니어|고객지원|기술지원|technical support|customer success|AS / CS|설치.?시운전|현장.?엔지니어"),
     ("SI·자동화", r"\bSI\b|시스템통합|자동화|인티그레이션|system integration|commissioning|application engineer|프로젝트.?PM|PLC|공정설계"),
     ("영업·사업", r"영업|business development|account manager|sales|마케팅|사업개발|해외사업"),
     ("SW·AI", r"소프트웨어|software|\bSW\b|\bAI\b|인공지능|알고리즘|ROS|SLAM|모션.?제어|백엔드|backend|frontend|프론트엔드|C\+\+|navigation|vision|ML engineer|machine learning"),
@@ -85,7 +87,15 @@ HIRE_HINT = re.compile(r"채용|모집|인재|엔지니어|개발자|연구원|�
 NOT_JOB = re.compile(r"채용공고$|채용정보$|채용안내$|공지사항|채용절차|FAQ|privacy|career$|recruit$|지원방법|접수방법|기업문화|회원가입|로그인|목록|더보기|홈페이지|인재풀 등록$|전체 공고", re.I)
 NO_OPENINGS = re.compile(r"(현재|진행.?중인|등록된).{0,12}(채용|공고).{0,15}(없|0건)|no (open|available|current) (positions|jobs|openings)", re.I)
 DATE_RX = re.compile(r"(20\d\d)[.\-/년]\s*(\d{1,2})[.\-/월]\s*(\d{1,2})")
-BOARD_SITES = {"잡코리아": "jobkorea.co.kr", "사람인": "saramin.co.kr", "인크루트": "incruit.com", "LinkedIn": "linkedin.com"}
+BOARD_SITES = {
+    "잡코리아": "jobkorea.co.kr",
+    "사람인": "saramin.co.kr",
+    "인크루트": "incruit.com",
+    "LinkedIn": "linkedin.com",
+    "리멤버": "career.rememberapp.co.kr",
+    "원티드": "wanted.co.kr",
+    "잡플래닛": "jobplanet.co.kr",
+}
 # Extra search terms supplement (never replace) the existing broad company search.
 # One grouped role query per company/platform limits extra search-index requests.
 SERVICE_SEARCH_TERMS = (
@@ -107,7 +117,7 @@ SERVICE_ROLE_RX = re.compile(
 
 VERIFIED_SOURCES = {"official", "platform_api"}
 COMPANY_BOARD_FILE = ROOT / 'board_company_pages.json'
-RSS_HOSTS = ("jobkorea.co.kr", "saramin.co.kr", "incruit.com", "linkedin.com", "wanted.co.kr", "career.greetinghr.com", "ninehire.site", "breezy.hr", "recruit.hd.com", "career.doosan.com", "hanwhain.com", "rainbow-robotics.com", "yujinrobot.com", "angel-robotics.com")
+RSS_HOSTS = ("jobkorea.co.kr", "saramin.co.kr", "incruit.com", "linkedin.com", "wanted.co.kr", "rememberapp.co.kr", "jobplanet.co.kr", "career.greetinghr.com", "ninehire.site", "breezy.hr", "recruit.hd.com", "career.doosan.com", "hanwhain.com", "rainbow-robotics.com", "yujinrobot.com", "angel-robotics.com")
 
 
 def iso_now() -> str:
@@ -430,12 +440,50 @@ LINKEDIN_NAMES = {
 }
 
 
+
+# Search-index references must point to an INDIVIDUAL job, not a portal homepage.
+# Not a direct crawl: indexed results can be out-of-date and remain unverified.
+INDEXED_JOB_PATHS = {
+    "리멤버": re.compile(r"^/job/posting/\d+/?$", re.I),
+    "원티드": re.compile(r"^/wd/\d+/?$", re.I),
+    "잡플래닛": re.compile(r"^/job/(?:postings|posting)/\d+/?$", re.I),
+}
+
+def indexed_job_url_valid(platform: str, url: str) -> bool:
+    if not safe_link(url) or not host_allowed(url, (BOARD_SITES[platform],)):
+        return False
+    check = INDEXED_JOB_PATHS.get(platform)
+    return check is None or bool(check.fullmatch(urllib.parse.urlsplit(url).path))
+
+
+def company_url_kind(company: dict) -> str:
+    """Conservative URL category, not a claim that live vacancies can be parsed."""
+    value = company.get("url") or ""
+    if not value:
+        return "공식 채용 URL 미등록"
+    p = urllib.parse.urlsplit(value)
+    host = (p.hostname or "").lower()
+    address = host + p.path.lower()
+    if any(host == d or host.endswith("." + d) for d in (
+        "jobkorea.co.kr", "saramin.co.kr", "incruit.com", "jobplanet.co.kr"
+    )):
+        return "외부 기업별 채용목록"
+    if re.search(r"career|recruit|/jobs(?:/|$)|job_posting|채용|/apply(?:/|$)", address):
+        return "채용 전용 경로"
+    return "기업 홈페이지(채용 전용 아님)"
+
+
 def board_search_url(platform: str, company_name: str, role_search: bool = False) -> str:
     """Indexed company or service-role jobs; no portal scraping or login bypass."""
     domain = BOARD_SITES[platform]
     if platform == "LinkedIn":
         company_term = LINKEDIN_NAMES.get(company_name, company_name)
         query = 'site:linkedin.com/jobs/view/ "' + company_term + '"'
+    elif platform in INDEXED_JOB_PATHS:
+        scope = {"리멤버": "site:career.rememberapp.co.kr/job/posting/",
+                 "원티드": "site:wanted.co.kr/wd/",
+                 "잡플래닛": "site:jobplanet.co.kr/job/"}[platform]
+        query = scope + ' "' + company_name + '"'
     else:
         query = 'site:' + domain + ' "' + company_name + '" 채용'
     if role_search:
@@ -453,6 +501,18 @@ def portal_links(company_name: str) -> dict[str,str]:
         "사람인": "https://www.saramin.co.kr/zf_user/search/recruit?searchword=" + q,
         "인크루트": "https://search.incruit.com/list/search.asp?col=job&kw=" + q,
         "LinkedIn": "https://www.linkedin.com/jobs/search/?keywords=" + urllib.parse.quote(LINKEDIN_NAMES.get(company_name,company_name)) + "&location=South%20Korea",
+        # Site-restricted Google searches are intentional: undocumented portal URL
+        # parameters can silently show unrelated listings.
+        **{
+            site: "https://www.google.com/search?q=" + urllib.parse.quote(
+                "site:" + domain + " " + '"' + company_name + '" 채용'
+            )
+            for site, domain in (
+                ("리멤버", "career.rememberapp.co.kr/job/posting/"),
+                ("원티드", "wanted.co.kr/wd/"),
+                ("잡플래닛", "jobplanet.co.kr/job/"),
+            )
+        },
     }
 
 
@@ -492,7 +552,7 @@ def rss_board_candidates(company: dict, platform: str, session: requests.Session
             title=tidy(el.findtext('title') or '')
             link=tidy(el.findtext('link') or '')
             desc=tidy(BeautifulSoup(el.findtext('description') or '', 'html.parser').get_text(' '))
-            if not safe_link(link) or not host_allowed(link,(BOARD_SITES[platform],)):
+            if not indexed_job_url_valid(platform, link):
                 continue
             if platform == "LinkedIn":
                 # Public search index only; never claim an indexed job is currently open.
@@ -711,6 +771,8 @@ def run(*, with_search: bool = True, session: requests.Session | None = None) ->
             'listing_status':company.get('listing_status',''),
             'focus':company.get('focus',''),
             'checked_at':now,'official_count':len(official),'candidate_count':0,
+            'official_url_kind':company_url_kind(company),
+            'official_url_note':company.get('official_url_note',''),
             'search_status':'검색 미실행','complete':complete,
             'portal_links':portal_links(company['name']),'portal_results':{},
             'alternative_careers_url':company.get('alternative_careers_url'),
@@ -731,14 +793,14 @@ def run(*, with_search: bool = True, session: requests.Session | None = None) ->
                 discovered.extend(found)
                 statuses[company_id]['candidate_count']=sum(j['verification']=='search_unverified' for j in found)
                 statuses[company_id]['portal_results']=notes
-                statuses[company_id]['search_status']='전문 채용사이트 4곳: 기업명+유지보수 직무 검색' if notes else '검색 미실행'
+                statuses[company_id]['search_status']='전문 채용사이트 7곳: 기업명+유지보수 직무 검색' if notes else '검색 미실행'
     jobs = reconcile(prev, deduplicate_sources(discovered), statuses, now)
     from crawler.job_status import update_jobkorea_statuses
     detail_check = update_jobkorea_statuses(session, jobs, now=datetime.fromisoformat(now))
     LOG.info("JobKorea status checks: %s", detail_check)
     # Keep archived closed posts for the '마감' tab; the default page hides them.
     jobs.sort(key=lambda j: (j.get("status") == "마감", not j.get("new", False), j.get("first_seen") or ""))
-    result = {"version": "v09", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
+    result = {"version": "v10", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
               "history": ([{"time":now, "jobs_official":sum(1 for j in jobs if j.get("verification")=="official" and j.get("status")=="진행"),
                            "success":sum(s["status"]=="성공" for s in statuses.values()),
                            "limited":sum(s["status"] in ("제한","미설정") for s in statuses.values()),

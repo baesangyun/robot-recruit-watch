@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 국내 로봇 채용 모니터 단위테스트
 #  * @file tests/test_collect.py
-#  * @version v12
+#  * @version v13
 #  * @description 기업 수·HTML 공고 파싱·중복/신규/마감 오판 방지 테스트
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-31
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 채용사이트 7곳 및 기업별 URL 유형·유진로봇 대체 채용 링크 검증
 #  *   1) 신규 확인 필요 후보 발견 표시, 폐업/타사명 오판 방지 검사
 #  *   1) 52개사 및 로봇 관련 신규 상장 기업 검증
 #  *   1) 잡코리아 상세 마감 표시/종료일 파싱 및 기본 목록 숨김 검증
@@ -218,7 +219,7 @@ def test_frontend_100_per_page_and_group_desc_sort():
     app=(Path(__file__).resolve().parents[1]/'docs/app.js').read_text()
     assert 'pageSize: 100' in app
     assert "(b.group||'').localeCompare(a.group||'','ko')" in app
-    assert "['잡코리아','사람인','인크루트','LinkedIn']" in app
+    assert "['잡코리아','사람인','인크루트','LinkedIn','리멤버','원티드','잡플래닛']" in app
 
 
 def test_angel_official_career_address():
@@ -506,3 +507,53 @@ def test_recent_new_search_candidate_is_shown_but_not_assumed_open():
     assert "NEW·미확인" in app
     assert "if (j.status === '마감') return '마감'" in app
     assert "신규 발견(48시간)" in html
+
+
+# v17 search site / company URL audit regressions
+from crawler.collect import indexed_job_url_valid, company_url_kind
+
+
+def test_seven_professional_job_search_sources():
+    expected={"잡코리아","사람인","인크루트","LinkedIn","리멤버","원티드","잡플래닛"}
+    assert set(BOARD_SITES)==expected
+    for company in ["유진로봇","빅웨이브로보틱스","에이치엘로보틱스"]:
+        links=portal_links(company)
+        assert set(links)==expected
+        assert all(links[site].startswith("https://www.google.com/search?q=")
+                   for site in ("리멤버","원티드","잡플래닛"))
+        for site in expected:
+            assert site and board_search_url(site,company).startswith("https://www.bing.com/")
+
+
+def test_job_search_index_only_matches_individual_job_links():
+    assert indexed_job_url_valid("리멤버","https://career.rememberapp.co.kr/job/posting/350919")
+    assert not indexed_job_url_valid("리멤버","https://career.rememberapp.co.kr/job/postings")
+    assert indexed_job_url_valid("원티드","https://www.wanted.co.kr/wd/12345")
+    assert not indexed_job_url_valid("원티드","https://www.wanted.co.kr/search?query=robot")
+    assert indexed_job_url_valid("잡플래닛","https://www.jobplanet.co.kr/job/postings/12345")
+    assert not indexed_job_url_valid("잡플래닛","https://www.jobplanet.co.kr/job")
+    assert not indexed_job_url_valid("리멤버","https://career.rememberapp.co.kr.evil.io/job/posting/1234")
+
+
+def test_official_url_types_are_not_claimed_as_verified_vacancies():
+    assert company_url_kind({"url":"https://www.clobot.co.kr/"})=="기업 홈페이지(채용 전용 아님)"
+    assert company_url_kind({"url":"https://career.kohyoung.com/recruit"})=="채용 전용 경로"
+    assert company_url_kind({"url":"https://www.jobkorea.co.kr/company/45203970/Recruit"})=="외부 기업별 채용목록"
+    assert company_url_kind({"url":None})=="공식 채용 URL 미등록"
+
+
+def test_yujin_verified_alternate_listing_and_old_link_warning():
+    roster=json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
+    co=next(c for c in roster if c["id"]=="yujin")
+    assert co["alternative_careers_url"]=="https://www.jobkorea.co.kr/company/45203970/Recruit"
+    assert "404" in co["official_url_note"]
+    pages=json.loads((ROSTER_FILE.parent/"board_company_pages.json").read_text(encoding="utf-8"))
+    assert "yujin" in pages and "잡코리아" in pages["yujin"]
+    assert pages["yujin"]["잡코리아"][0]==co["alternative_careers_url"]
+
+
+def test_legacy_sources_keep_linked_instead_of_removal():
+    from pathlib import Path
+    app=(Path(__file__).resolve().parents[1]/"docs/app.js").read_text(encoding="utf-8")
+    assert "'잡코리아','사람인','인크루트','LinkedIn','리멤버','원티드','잡플래닛'" in app
+    assert "회사 홈 ↗" in app

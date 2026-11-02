@@ -118,7 +118,9 @@
     "group": "상장기업",
     "sector": "AMR·SI",
     "url": "https://yujinrobot.com/company/recruit",
-    "adapter": "yujin"
+    "adapter": "yujin",
+    "alternative_careers_url": "https://www.jobkorea.co.kr/company/45203970/Recruit",
+    "official_url_note": "기존 공식 URL 자동 수집 404 오류(2026-11-02 확인). 잡코리아 기업별 채용목록은 확인됨."
   },
   {
     "id": "yuil",
