@@ -194,16 +194,18 @@
     "name": "에스비비테크",
     "group": "상장기업",
     "sector": "로봇부품",
-    "url": null,
-    "adapter": "search"
+    "url": "http://www.sbb.co.kr",
+    "adapter": "landing",
+    "official_url_note": "기업 공식 홈페이지(채용 전용 페이지 미확인). 잡코리아 기업정보 존재하나 채용 여부는 확인 필요."
   },
   {
     "id": "spg",
     "name": "에스피지",
     "group": "상장기업",
     "sector": "로봇감속기·모터",
-    "url": null,
-    "adapter": "search"
+    "url": "https://spg.co.kr/aboutUs?tab=3",
+    "adapter": "landing",
+    "official_url_note": "기업 공식 홈페이지 채용정보 탭(2026 상시채용 표기 확인). 자동 공고 판독 여부는 별도 확인."
   },
   {
     "id": "higen",
@@ -211,7 +213,8 @@
     "group": "상장기업",
     "sector": "로봇액추에이터",
     "url": null,
-    "adapter": "search"
+    "adapter": "search",
+    "alternative_careers_url": "https://www.saramin.co.kr/zf_user/company-info/view-inner-recruit?csn=RitUSkN3VThRZzduY3dmNWxjZkF2Zz09"
   },
   {
     "id": "vd",
@@ -235,15 +238,18 @@
     "group": "비상장기업",
     "sector": "돌봄·서비스",
     "url": null,
-    "adapter": "search"
+    "adapter": "search",
+    "alternative_careers_url": "https://www.jobkorea.co.kr/company/42576340/Recruit"
   },
   {
     "id": "curexo",
     "name": "큐렉소",
     "group": "상장기업",
     "sector": "의료로봇",
-    "url": null,
-    "adapter": "search"
+    "url": "https://career.curexo.com/",
+    "adapter": "landing",
+    "alternative_careers_url": "https://www.jobkorea.co.kr/company/42247812/Recruit",
+    "official_url_note": "큐렉소 공식 Career 페이지 확인. 잡코리아 기업별 공고도 확인됨."
   },
   {
     "id": "raon",
@@ -466,7 +472,8 @@
     "url": null,
     "adapter": "search",
     "focus": "물류 AMR·로봇 비전",
-    "listing_status": "코스닥"
+    "listing_status": "코스닥",
+    "alternative_careers_url": "https://www.saramin.co.kr/zf_user/company-info/view-inner-recruit?csn=VG1WQlhkNXYvcjZLYkh0cEFQL3U3dz09"
   },
   {
     "id": "samickthk",
@@ -477,7 +484,8 @@
     "adapter": "search",
     "focus": "AMR·모션 제어",
     "listing_status": "코스피 004380",
-    "listing_evidence_url": "https://comp.wisereport.co.kr/company/c1010001.aspx?cmp_cd=004380"
+    "listing_evidence_url": "https://comp.wisereport.co.kr/company/c1010001.aspx?cmp_cd=004380",
+    "alternative_careers_url": "https://www.saramin.co.kr/zf_user/company-info/view-inner-recruit?csn=WlRzemVLTnV4bWxKZWV4NkJKQ1NNdz09"
   },
   {
     "id": "cowin",
@@ -497,7 +505,8 @@
     "url": null,
     "adapter": "search",
     "focus": "액추에이터·구동",
-    "listing_status": "코스닥"
+    "listing_status": "코스닥",
+    "alternative_careers_url": "https://www.saramin.co.kr/zf_user/company-info/view-inner-recruit?csn=S29zdDU3MmhVa01Sd2dSblBkYTRJdz09"
   },
   {
     "id": "knrsystem",
@@ -507,7 +516,8 @@
     "url": null,
     "adapter": "search",
     "focus": "유압 로봇·장비",
-    "listing_status": "코스닥"
+    "listing_status": "코스닥",
+    "alternative_careers_url": "https://www.saramin.co.kr/zf_user/company-info/view-inner-recruit?csn=SlVmSnA0RTV1eGJNbmFBSUt5V2ZOdz09"
   },
   {
     "id": "hlrobotics",

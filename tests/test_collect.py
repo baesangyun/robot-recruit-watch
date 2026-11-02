@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 국내 로봇 채용 모니터 단위테스트
 #  * @file tests/test_collect.py
-#  * @version v13
+#  * @version v14
 #  * @description 기업 수·HTML 공고 파싱·중복/신규/마감 오판 방지 테스트
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-31
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 기존 URL 정정 및 큐렉소·로보케어·삼익THK 등 모집 목록 경로 검증
 #  *   1) 채용사이트 7곳 및 기업별 URL 유형·유진로봇 대체 채용 링크 검증
 #  *   1) 신규 확인 필요 후보 발견 표시, 폐업/타사명 오판 방지 검사
 #  *   1) 52개사 및 로봇 관련 신규 상장 기업 검증
@@ -557,3 +558,17 @@ def test_legacy_sources_keep_linked_instead_of_removal():
     app=(Path(__file__).resolve().parents[1]/"docs/app.js").read_text(encoding="utf-8")
     assert "'잡코리아','사람인','인크루트','LinkedIn','리멤버','원티드','잡플래닛'" in app
     assert "회사 홈 ↗" in app
+
+
+def test_career_url_audit_extra_verified_employer_pages():
+    roster=json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
+    cs={c["id"]:c for c in roster}
+    assert cs["spg"]["url"]=="https://spg.co.kr/aboutUs?tab=3"
+    assert cs["curexo"]["url"]=="https://career.curexo.com/"
+    assert cs["sbb"]["url"]=="http://www.sbb.co.kr"
+    for cid in ("yujin","curexo","robocare","higen","samhyeon","samickthk","vone","knrsystem"):
+        assert cs[cid]["alternative_careers_url"].startswith("https://")
+    boards=json.loads((ROSTER_FILE.parent/"board_company_pages.json").read_text(encoding="utf-8"))
+    for cid in ("yujin","curexo","robocare","higen","samhyeon","samickthk","vone","knrsystem"):
+        assert cid in boards
+        assert all(url.startswith("https://") for group in boards[cid].values() for url in group)
