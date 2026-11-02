@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 국내 로봇 채용 모니터 단위테스트
 #  * @file tests/test_collect.py
-#  * @version v11
+#  * @version v12
 #  * @description 기업 수·HTML 공고 파싱·중복/신규/마감 오판 방지 테스트
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-31
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 신규 확인 필요 후보 발견 표시, 폐업/타사명 오판 방지 검사
 #  *   1) 52개사 및 로봇 관련 신규 상장 기업 검증
 #  *   1) 잡코리아 상세 마감 표시/종료일 파싱 및 기본 목록 숨김 검증
 #  *   1) 폐업기업 제외/운영 중 엔닷라이트 교체 검증
@@ -483,3 +484,25 @@ def test_missing_robotics_firms_registered():
     assert by["hlrobotics"]["group"]=="대기업계열"
     boards=json.loads((ROSTER_FILE.parent/"board_company_pages.json").read_text(encoding="utf-8"))
     assert boards["bigwave"]["사람인"] and boards["brils"]["사람인"] and boards["hlrobotics"]["잡코리아"]
+
+
+from crawler.portal_company import company_prefix_matches
+
+
+def test_new_company_name_aliases_are_strict():
+    assert company_prefix_matches({"id":"brils","name":"브릴스"},"BRILS")
+    assert company_prefix_matches({"id":"hlrobotics","name":"에이치엘로보틱스"},"HL로보틱스")
+    assert not company_prefix_matches({"id":"brils","name":"브릴스"},"BRILS PARTNER")
+    assert not company_prefix_matches({"id":"bigwave","name":"빅웨이브로보틱스"},"다른로보틱스")
+
+
+def test_recent_new_search_candidate_is_shown_but_not_assumed_open():
+    root=ROSTER_FILE.parent
+    app=(root/"docs/app.js").read_text(encoding="utf-8")
+    html=(root/"docs/index.html").read_text(encoding="utf-8")
+    assert "const recentlyDiscovered = (j) =>" in app
+    assert "48*60*60*1000" in app
+    assert "state.status==='new'&&!recentlyDiscovered(j)" in app
+    assert "NEW·미확인" in app
+    assert "if (j.status === '마감') return '마감'" in app
+    assert "신규 발견(48시간)" in html

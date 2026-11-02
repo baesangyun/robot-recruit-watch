@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 채용전문사이트 기업별 공고 수집
 #  * @file crawler/portal_company.py
-#  * @version v04
+#  * @version v05
 #  * @description 공개 기업별 목록에서 개별 공고 링크만 수집
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-16
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) BRILS·HL로보틱스 등 공식 기업명 영문/한글 약칭 일치 검증
 #  *   1) 기업별 공개 목록의 개별 공고 링크 추출
 #  *   2) robots 및 HTTPS 검증 준수, 실패 시 오류 기록
 #  * - 이전 버전:
@@ -90,6 +91,21 @@ def parse_public_company_listing(html,platform,page_url):
         if len(out)>=45:break
     return out
 
+EMPLOYER_ALIASES = {
+    "brils": {"BRILS", "브릴스"},
+    "hlrobotics": {"HL로보틱스", "HL Robotics", "에이치엘로보틱스"},
+    "bigwave": {"빅웨이브로보틱스", "Bigwave Robotics"},
+    "zenixrobotics": {"제닉스", "제닉스로보틱스", "Zenix Robotics"},
+}
+
+def company_prefix_matches(company, label):
+    def normalize(v):
+        return re.sub(r"[^가-힣a-z0-9]+", "", v.lower())
+    allowed={normalize(company["name"])}
+    allowed.update(normalize(n) for n in EMPLOYER_ALIASES.get(company["id"], set()))
+    return normalize(label) in allowed
+
+
 def portal_company_page_candidates(session,company,platform,page_url):
     if not valid_site(page_url,platform):return [],'기업별 링크 오류'
     allowed,policy=can_collect(session,page_url)
@@ -99,14 +115,12 @@ def portal_company_page_candidates(session,company,platform,page_url):
         response.raise_for_status()
         if not valid_site(response.url,platform):return [],'리다이렉션 확인 불가'
         posts=parse_public_company_listing(response.text,platform,response.url)
-        ident=re.sub(r'[^가-힣a-z0-9]','',company['name'].lower())
         checked=[]
         for post in posts:
-            # Guard against an unrelated company embedded in a listing.
+            # Explicit, verified aliases only. Never attribute an unrelated job.
             first=re.match(r'^\[([^\]]+)\]',post['title'])
-            if first:
-                v=re.sub(r'[^가-힣a-z0-9]','',first.group(1).lower())
-                if ident not in v and v not in ident:continue
+            if first and not company_prefix_matches(company,first.group(1)):
+                continue
             checked.append(post)
         return checked,('기업별 목록 후보 '+str(len(checked))+'건') if checked else '공고 링크 판독 0건'
     except (requests.RequestException,ValueError) as e:

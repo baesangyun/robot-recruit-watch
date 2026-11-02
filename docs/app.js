@@ -1,12 +1,13 @@
 /**************************************************************
  * @name 국내 로봇기업 채용 대시보드
  * @file docs/app.js
- * @version v06
+ * @version v07
  * @description 채용/수집현황/이력 단일페이지, 신규/마감/직무/지역/기업 검색, CSV
  * @author OpenAI ChatGPT
  * @date 2026-10-16
  * @Revisions
  * - 현재 버전:
+ *   1) 신규 발견 48시간: 사람인/잡코리아 '확인 필요' 후보도 표시하며 진행으로 오인 금지
  *   1) 종료 공고는 기본 화면에서 숨기고 마감 탭에서만 확인(과거 이력은 유지)
  *   1) 41개 기업과 대기업 투자·중견기업 입증 링크 표시
  *   1) LinkedIn 기업별 검색 링크 및 색인 후보 안내
@@ -25,6 +26,15 @@
     if (j.status === '마감') return '마감';
     if (!['official','platform_api'].includes(j.verification)) return '확인필요';
     return j.status === '확인필요' ? '확인필요' : '진행';
+  };
+  // New job is not the same as VERIFIED OPEN job. Index candidates remain '확인필요'.
+  const recentlyDiscovered = (j) => {
+    if (jobStatus(j)==='마감') return false;
+    if (j.new) return true;
+    if (['official','platform_api'].includes(j.verification)) return false;
+    const start=Date.parse(j.first_seen||'');
+    const end=Date.parse(state.data?.last_run||'');
+    return Number.isFinite(start) && Number.isFinite(end) && end>=start && (end-start)<=48*60*60*1000;
   };
   const scopeOf = (j) => {
     if (['국내','해외','미상'].includes(j.work_scope)) return j.work_scope;
@@ -86,7 +96,7 @@
     const official=jobs.filter(j=>['official','platform_api'].includes(j.verification));
     const active=official.filter(j=>jobStatus(j)==='진행');
     const closed=jobs.filter(j=>jobStatus(j)==='마감');
-    const fresh=active.filter(j=>j.new);
+    const fresh=jobs.filter(recentlyDiscovered);
     const companies=state.data.companies||[];
     const success=companies.filter(c=>c.status==='성공').length;
     setText('hero-company-count',companies.length); setText('nav-company-count',companies.length); setText('last-sync',state.data.last_run?formatDate(state.data.last_run,true):'아직 실행 전');
@@ -110,7 +120,7 @@
     let jobs=(state.data.jobs||[]).filter(j=>{
       const status=jobStatus(j);
       if(state.status==='all'&&status==='마감') return false; // Closed jobs remain only in the archive tab.
-      if(state.status==='new'&&!j.new) return false;
+      if(state.status==='new'&&!recentlyDiscovered(j)) return false;
       if(state.status!=='new'&&state.status!=='all'&&status!==state.status) return false;
       if(state.scope && scopeOf(j)!==state.scope) return false;
       if(state.role&&j.role!==state.role)return false;
@@ -136,7 +146,7 @@
     const content=el('div',{class:'job-title'});
     const u=safelyOpen(job.url);
     content.append(u?el('a',{href:u,target:'_blank',rel:'noopener noreferrer',text:job.title}):el('span',{text:job.title}));
-    if(job.new && jobStatus(job)==='진행')content.append(el('span',{class:'title-new',text:'NEW'}));
+    if(recentlyDiscovered(job))content.append(el('span',{class:'title-new',text:jobStatus(job)==='확인필요'?'NEW·미확인':'NEW'}));
     content.append(el('div',{class:'source-hint',text:job.verification==='official'?'기업 공개 채용목록':job.verification==='platform_api'?'사람인 API · 활성 공고 확인':job.verification==='official_unverified'?'기업 과거·현행 목록 · 진행 여부 확인 필요':(job.source||'검색 발견')+' · 모집 여부 확인 필요'}));
     if (Array.isArray(job.other_sources)&&job.other_sources.length) {
       const links=el('div',{class:'alt-job-sources'});

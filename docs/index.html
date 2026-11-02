@@ -1,12 +1,13 @@
 <!-- /**************************************************************
  * @name 로봇 채용 레이더 단일페이지
  * @file docs/index.html
- * @version v08
+ * @version v09
  * @description PC·모바일 채용 통합 대시보드 마크업
  * @author OpenAI ChatGPT
  * @date 2026-10-16
  * @Revisions
  * - 현재 버전:
+ *   1) 최근 48시간 발견한 채용후보도 신규 표시하되 모집 검증 별도 유지
  *   1) 누락된 로봇 관련 기업 11곳 추가, 52개 모니터링
  *   1) 마감 공고를 기본 목록에서 제외하고 별도 마감 탭에 보존
  *   1) 기존 30개 + 중견·투자 대상 11개 확장
@@ -24,7 +25,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="theme-color" content="#071b31"/>
   <meta name="description" content="국내 주요 로봇기업 채용공고 자동 모니터링 — 신규·진행·마감, 직무와 지역 필터"/>
-  <title>ROBOT WATCH | 국내 로봇기업 채용 레이더 v08</title>
+  <title>ROBOT WATCH | 국내 로봇기업 채용 레이더 v09</title>
   <link rel="stylesheet" href="./styles.css"/>
   <script defer src="./seed.js"></script>
   <script defer src="./app.js"></script>
@@ -52,7 +53,7 @@
     <div class="side-bottom">
       <div class="side-activity"><span class="pulse-dot"></span><span>일일 자동 점검 설정</span></div>
       <p>매일 10:00 · 15:00 (KST)<br/>GitHub Actions 자동 수집</p>
-      <div class="side-meta">© 2026 ROBOT WATCH <span>v08</span></div>
+      <div class="side-meta">© 2026 ROBOT WATCH <span>v09</span></div>
     </div>
   </aside>
   <main class="main" id="top">
@@ -87,7 +88,7 @@
     <div class="notice" id="notice"><span class="notice-icon">ⓘ</span><span id="notice-text">배포 후 첫 자동 수집을 실행하면 공고가 표시됩니다. 첫 수집 전에는 실제 채용 건수를 알 수 없습니다.</span><a href="#sources" id="notice-link">수집 상태 보기 ↗</a></div>
 
     <section class="stats" aria-label="채용 요약">
-      <div class="stat-card"><div class="stat-label">신규 발견 <span class="stat-symbol teal">↗</span></div><div class="stat-main"><strong id="stat-new">0</strong><small>건</small></div><p>직전 실행 후 공식 페이지 신규</p></div>
+      <div class="stat-card"><div class="stat-label">신규 발견(48시간) <span class="stat-symbol teal">↗</span></div><div class="stat-main"><strong id="stat-new">0</strong><small>건</small></div><p>공식 신규 및 최근 검색후보(모집 상태 미확인 포함)</p></div>
       <div class="stat-card"><div class="stat-label">진행 중 <span class="stat-symbol blue">◎</span></div><div class="stat-main"><strong id="stat-active">0</strong><small>건</small></div><p>기업 공식목록 및 승인된 API 확인 기준</p></div>
       <div class="stat-card"><div class="stat-label">마감 <span class="stat-symbol amber">◷</span></div><div class="stat-main"><strong id="stat-closed">0</strong><small>건</small></div><p>기록 중 마감기한 경과</p></div>
       <div class="stat-card"><div class="stat-label">수집 성공 기업 <span class="stat-symbol green">✓</span></div><div class="stat-main"><strong id="stat-success">0</strong><small id="stat-success-total">/ 52</small></div><p>공식 공고 목록 판독 성공</p></div>
@@ -131,7 +132,7 @@
       <div class="howto"><div class="step-circle">1</div><div><h3>매일 자동 갱신 방식</h3><p>매일 10시·15시(한국시간) 및 수동 실행 시 GitHub Actions가 기업별 공식 페이지와 허용된 공개 검색 소스를 점검하고 JSON을 갱신합니다. 이후 GitHub Pages가 바뀐 데이터를 표시합니다. 별도의 PC 상시 실행은 필요하지 않습니다.</p></div></div>
     </section>
 
-    <footer class="footer"><span>ROBOT WATCH <strong>v08</strong> · 국내 로봇기업 채용 레이더</span><span>출처: 기업 공식 채용페이지 · 확인이 필요한 검색 결과는 별도 표기</span></footer>
+    <footer class="footer"><span>ROBOT WATCH <strong>v09</strong> · 국내 로봇기업 채용 레이더</span><span>출처: 기업 공식 채용페이지 · 확인이 필요한 검색 결과는 별도 표기</span></footer>
   </main>
 </div>
 </body>
