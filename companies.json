@@ -164,8 +164,10 @@
     "name": "트위니",
     "group": "비상장기업",
     "sector": "자율주행·물류",
-    "url": "https://www.jobkorea.co.kr/recruit/co_read/recruit/c/twinny",
-    "adapter": "landing"
+    "url": "https://twinny.career.greetinghr.com/ko/home",
+    "adapter": "greeting",
+    "alternative_careers_url": "https://www.saramin.co.kr/zf_user/company-info/view-inner-recruit?csn=VFBNSkFGVXRBc0k2aTB1b3p5OWUyZz09",
+    "official_url_note": "공식 GreetingHR의 채용 중 목록(로봇사업본부 CS팀 필드엔지니어 포함)을 우선 판독. 사람인 기업별 목록으로 보완."
   },
   {
     "id": "trobotics",

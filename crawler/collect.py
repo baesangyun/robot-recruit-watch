@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 국내 로봇기업 채용 자동수집기
 #  * @file crawler/collect.py
-#  * @version v13
+#  * @version v14
 #  * @description 공식 채용페이지/공개 공고 피드 수집, 신규·진행·마감 판정, 기업별 검사 기록
 #  * @author OpenAI ChatGPT
 #  * @date 2026-11-03
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 트위니 공식 GreetingHR 수집기 재사용 및 사람인 채용목록 대체 연결
 #  *   1) 큐렉소 공식 채용 목록 UUID 전용 판독·엔젤로보틱스 공식 페이지 탐색 및 2페이지 수집
 #  *   2) 공식 공고 총건수 대비 부분 수집 감지·두산 실제 채용 목록 URL 연결
 #  *   1) 에스피지·큐렉소 공식 채용 URL 수정, 유진로봇 등 8개 기업별 채용목록 보강
@@ -846,7 +847,7 @@ def run(*, with_search: bool = True, session: requests.Session | None = None) ->
     LOG.info("JobKorea status checks: %s", detail_check)
     # Keep archived closed posts for the '마감' tab; the default page hides them.
     jobs.sort(key=lambda j: (j.get("status") == "마감", not j.get("new", False), j.get("first_seen") or ""))
-    result = {"version": "v12", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
+    result = {"version": "v13", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
               "history": ([{"time":now, "jobs_official":sum(1 for j in jobs if j.get("verification")=="official" and j.get("status")=="진행"),
                            "success":sum(s["status"]=="성공" for s in statuses.values()),
                            "limited":sum(s["status"] in ("제한","미설정") for s in statuses.values()),

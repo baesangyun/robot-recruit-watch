@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 국내 로봇 채용 모니터 단위테스트
 #  * @file tests/test_collect.py
-#  * @version v15
+#  * @version v16
 #  * @description 기업 수·HTML 공고 파싱·중복/신규/마감 오판 방지 테스트
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-31
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 트위니 GreetingHR 채용공고 / 사람인 보완 경로 유지 검증
 #  *   1) 큐렉소 UUID 공고 판독/허위공고 방지, 엔젤 채용목록 페이지네이션·부분수집 체크
 #  *   1) 기존 URL 정정 및 큐렉소·로보케어·삼익THK 등 모집 목록 경로 검증
 #  *   1) 채용사이트 7곳 및 기업별 URL 유형·유진로봇 대체 채용 링크 검증
@@ -656,3 +657,26 @@ def test_new_official_job_urls_in_registry():
     assert a["curexo"]["adapter"]=="curexo"
     assert "a049e805" in a["curexo"]["url"]
     assert a["doosan"]["url"].endswith("/dsp/sa/RecList.jsp")
+
+
+
+def test_twinny_greetinghr_adapter_and_saramin_fallback():
+    roster=json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
+    c=next(c for c in roster if c["id"]=="twinny")
+    assert c["adapter"]=="greeting"
+    assert c["url"]=="https://twinny.career.greetinghr.com/ko/home"
+    assert c["alternative_careers_url"].startswith("https://www.saramin.co.kr/")
+    boards=json.loads((ROSTER_FILE.parent/"board_company_pages.json").read_text(encoding="utf-8"))
+    assert boards["twinny"]["사람인"]==[c["alternative_careers_url"]]
+
+
+def test_twinny_field_engineer_posting_parses_with_existing_greeting_logic():
+    company={"id":"twinny","name":"트위니","adapter":"greeting",
+             "url":"https://twinny.career.greetinghr.com/ko/home"}
+    html=('<div>채용 중인 공고</div>'
+          '<a href="/ko/o/123456"><h3>[로봇사업본부] 자율주행로봇 CS팀 필드엔지니어 채용</h3>'
+          '<span>현장기술지원 경력 무관 정규직 트위니</span></a>')
+    jobs,empty=parse_listing(company,html,company["url"])
+    assert not empty and len(jobs)==1
+    assert jobs[0]["verification"]=="official"
+    assert jobs[0]["role"]=="유지보수·CS"
