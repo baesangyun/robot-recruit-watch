@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 국내 로봇기업 채용 자동수집기
 #  * @file crawler/collect.py
-#  * @version v09
+#  * @version v10
 #  * @description 공식 채용페이지/공개 공고 피드 수집, 신규·진행·마감 판정, 기업별 검사 기록
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-31
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 로봇 관련 상장기업 10개와 HL로보틱스 추가(총 52개)
 #  *   1) 잡코리아 공고 상세 공개페이지 마감 여부 확인 및 오래된 공고 기본목록 제외
 #  *   1) 폐업 이력이 확인된 플로틱 제외, 채용 중인 네이버 투자 기업 엔닷라이트 대체
 #  *   1) 41개 로봇기업 확장: 중견·대기업 투자 대상 및 검증 출처 전달
@@ -415,6 +416,17 @@ LINKEDIN_NAMES = {
     "씨메스": "CMES",
     "엘에스티라유텍": "LS THIRA-UTECH",
     "티엑스알로보틱스": "TXR Robotics",
+    "빅웨이브로보틱스": "Bigwave Robotics",
+    "브릴스": "BRILS",
+    "제닉스로보틱스": "Zenix Robotics",
+    "피앤에스로보틱스": "P&S Robotics",
+    "에스피시스템스": "SP Systems",
+    "브이원텍": "V-One Tech",
+    "삼익THK": "Samick THK",
+    "코윈테크": "Cowintech",
+    "삼현": "Samhyeon",
+    "케이엔알시스템": "KNR Systems",
+    "에이치엘로보틱스": "HL Robotics",
 }
 
 
@@ -726,7 +738,7 @@ def run(*, with_search: bool = True, session: requests.Session | None = None) ->
     LOG.info("JobKorea status checks: %s", detail_check)
     # Keep archived closed posts for the '마감' tab; the default page hides them.
     jobs.sort(key=lambda j: (j.get("status") == "마감", not j.get("new", False), j.get("first_seen") or ""))
-    result = {"version": "v08", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
+    result = {"version": "v09", "last_run": now, "timezone": "Asia/Seoul", "companies": list(statuses.values()), "jobs": jobs,
               "history": ([{"time":now, "jobs_official":sum(1 for j in jobs if j.get("verification")=="official" and j.get("status")=="진행"),
                            "success":sum(s["status"]=="성공" for s in statuses.values()),
                            "limited":sum(s["status"] in ("제한","미설정") for s in statuses.values()),

@@ -399,5 +399,125 @@
     "adapter": "landing",
     "listing_status": "상장",
     "focus": "AMR·AGV 설치·유지보수"
+  },
+  {
+    "id": "bigwave",
+    "name": "빅웨이브로보틱스",
+    "group": "상장기업",
+    "sector": "로봇 SI·관제·필드엔지니어",
+    "url": "https://bigwaverobotics.com",
+    "adapter": "landing",
+    "focus": "로봇 SI·관제·필드엔지니어",
+    "listing_status": "코스닥 2026-09-29",
+    "listing_evidence_url": "https://www.yna.co.kr/view/AKR20260929036200008",
+    "alternative_careers_url": "https://www.saramin.co.kr/zf_user/company-info/view-inner-recruit?csn=V0tkS2l3cm11aGNQZEh6aVZsS2hNUT09"
+  },
+  {
+    "id": "brils",
+    "name": "브릴스",
+    "group": "상장기업",
+    "sector": "로봇 SI·설비 자동화",
+    "url": "https://www.brils.co.kr/",
+    "adapter": "landing",
+    "focus": "로봇 SI·설비 자동화",
+    "listing_status": "코스닥 2026-10-01",
+    "listing_evidence_url": "https://ir.newspim.com/news/view/20261001001079",
+    "alternative_careers_url": "https://www.saramin.co.kr/zf_user/company-info/view-inner-recruit?csn=M2NSWGk3T1o0RWEvNjFsWUt4U2gxZz09"
+  },
+  {
+    "id": "zenixrobotics",
+    "name": "제닉스로보틱스",
+    "group": "상장기업",
+    "sector": "AGV·물류 자동화",
+    "url": "https://www.zenixkorea.co.kr/",
+    "adapter": "landing",
+    "focus": "AGV·물류 자동화",
+    "listing_status": "코스닥 381620",
+    "listing_evidence_url": "https://ohgong.com/dart/381620"
+  },
+  {
+    "id": "pnnsrobotics",
+    "name": "피앤에스로보틱스",
+    "group": "상장기업",
+    "sector": "의료·재활 로봇",
+    "url": "https://walkbot.co.kr",
+    "adapter": "landing",
+    "focus": "의료·재활 로봇",
+    "listing_status": "코스닥 460940",
+    "listing_evidence_url": "https://ohgong.com/dart/460940"
+  },
+  {
+    "id": "spsystems",
+    "name": "에스피시스템스",
+    "group": "상장기업",
+    "sector": "산업용 로봇·스마트팩토리",
+    "url": "https://www.spsystems.co.kr/",
+    "adapter": "landing",
+    "focus": "산업용 로봇·스마트팩토리",
+    "listing_status": "코스닥"
+  },
+  {
+    "id": "vone",
+    "name": "브이원텍",
+    "group": "상장기업",
+    "sector": "물류 AMR·로봇 비전",
+    "url": null,
+    "adapter": "search",
+    "focus": "물류 AMR·로봇 비전",
+    "listing_status": "코스닥"
+  },
+  {
+    "id": "samickthk",
+    "name": "삼익THK",
+    "group": "상장기업",
+    "sector": "AMR·모션 제어",
+    "url": null,
+    "adapter": "search",
+    "focus": "AMR·모션 제어",
+    "listing_status": "코스피 004380",
+    "listing_evidence_url": "https://comp.wisereport.co.kr/company/c1010001.aspx?cmp_cd=004380"
+  },
+  {
+    "id": "cowin",
+    "name": "코윈테크",
+    "group": "상장기업",
+    "sector": "AGV·공장 자동화",
+    "url": null,
+    "adapter": "search",
+    "focus": "AGV·공장 자동화",
+    "listing_status": "코스닥"
+  },
+  {
+    "id": "samhyeon",
+    "name": "삼현",
+    "group": "상장기업",
+    "sector": "액추에이터·구동",
+    "url": null,
+    "adapter": "search",
+    "focus": "액추에이터·구동",
+    "listing_status": "코스닥"
+  },
+  {
+    "id": "knrsystem",
+    "name": "케이엔알시스템",
+    "group": "상장기업",
+    "sector": "유압 로봇·장비",
+    "url": null,
+    "adapter": "search",
+    "focus": "유압 로봇·장비",
+    "listing_status": "코스닥"
+  },
+  {
+    "id": "hlrobotics",
+    "name": "에이치엘로보틱스",
+    "group": "대기업계열",
+    "sector": "AMR·필드엔지니어",
+    "url": "https://www.hlrobotics.co.kr/careers",
+    "adapter": "landing",
+    "focus": "AMR·필드엔지니어",
+    "investors": "HL그룹",
+    "investment_relation": "계열사",
+    "investment_source_url": "https://www.hlrobotics.co.kr/careers",
+    "alternative_careers_url": "https://www.jobkorea.co.kr/company/49468718/Recruit"
   }
 ]

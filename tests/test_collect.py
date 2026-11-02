@@ -1,12 +1,13 @@
 # /**************************************************************
 #  * @name 국내 로봇 채용 모니터 단위테스트
 #  * @file tests/test_collect.py
-#  * @version v10
+#  * @version v11
 #  * @description 기업 수·HTML 공고 파싱·중복/신규/마감 오판 방지 테스트
 #  * @author OpenAI ChatGPT
 #  * @date 2026-10-31
 #  * @Revisions
 #  * - 현재 버전:
+#  *   1) 52개사 및 로봇 관련 신규 상장 기업 검증
 #  *   1) 잡코리아 상세 마감 표시/종료일 파싱 및 기본 목록 숨김 검증
 #  *   1) 폐업기업 제외/운영 중 엔닷라이트 교체 검증
 #  *   1) 신규 기업과 중견/투자 자료 및 원래 30개 기업 보존 확인
@@ -31,8 +32,8 @@ BEAR = {"id":"bear","name":"베어로보틱스","adapter":"breezy","url":"https:
 
 def test_company_roster():
     roster = json.loads(ROSTER_FILE.read_text())
-    assert len(roster) == 41
-    assert len({c['id'] for c in roster}) == 41
+    assert len(roster) == 52
+    assert len({c['id'] for c in roster}) == 52
     assert all(c['name'] and c['adapter'] and c['group'] for c in roster)
 
 
@@ -369,7 +370,7 @@ def test_maintenance_keyword_search_invoked_for_each_board():
 def test_expansion_mid_and_corporate_investment_provenance():
     roster=json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
     assert set(["hanwha","doosan","hd","samsung","lg","hyundai","rainbow","robotis","neuromeka","bear","angel","kohyoung","yujin","yuil","robostar","clobot","twinny","trobotics","everybot","roborobo","sbb","spg","higen","vd","neubility","robocare","curexo","raon","future","robot3"]).issubset({c["id"] for c in roster})
-    assert len(roster)==len({c["id"] for c in roster})==len({c["name"] for c in roster})==41
+    assert len(roster)==len({c["id"] for c in roster})==len({c["name"] for c in roster})==52
     assert sum(c["group"]=="중견기업" for c in roster)==3
     assert sum(c["group"]=="대기업 투자기업" for c in roster)==5
     for c in roster:
@@ -384,18 +385,18 @@ def test_investment_links_on_ui_and_seed_company_count():
     root=Path(__file__).resolve().parents[1]
     seed=(root/"docs/seed.js").read_text(encoding="utf-8").split("window.ROBOT_WATCH_SEED = ",1)[1].strip().rstrip(";")
     data=json.loads(seed)
-    assert len(data["companies"])==41 and data["jobs"]==[]
+    assert len(data["companies"])==52 and data["jobs"]==[]
     assert all(c["status"]=="미실행" for c in data["companies"])
     js=(root/"docs/app.js").read_text(encoding="utf-8")
     assert "투자 근거 ↗" in js and "중견기업 근거 ↗" in js
     html=(root/"docs/index.html").read_text(encoding="utf-8")
-    assert 'id="hero-company-count">41<' in html
-    assert 'id="companies-total">41<' in html
+    assert 'id="hero-company-count">52<' in html
+    assert 'id="companies-total">52<' in html
 
 def test_exclude_closed_firm_and_include_active_corporate_investee():
     roster=json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
     ids={c["id"] for c in roster}
-    assert len(roster)==41
+    assert len(roster)==52
     assert "floatic" not in ids
     assert "ndotlight" in ids
     c=next(c for c in roster if c["id"]=="ndotlight")
@@ -473,3 +474,12 @@ def test_closed_posts_hidden_by_default_but_kept_in_archive():
     assert "state.status==='all'&&status==='마감'" in app
     assert 'data-status="마감"' in html
     assert '모집·확인 필요' in html
+
+def test_missing_robotics_firms_registered():
+    cs=json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
+    by={c["id"]:c for c in cs}
+    assert len(cs)==len(by)==52
+    assert all(by[k]["group"]=="상장기업" for k in ["bigwave","brils","zenixrobotics","pnnsrobotics","spsystems","vone","samickthk","cowin","samhyeon","knrsystem"])
+    assert by["hlrobotics"]["group"]=="대기업계열"
+    boards=json.loads((ROSTER_FILE.parent/"board_company_pages.json").read_text(encoding="utf-8"))
+    assert boards["bigwave"]["사람인"] and boards["brils"]["사람인"] and boards["hlrobotics"]["잡코리아"]
